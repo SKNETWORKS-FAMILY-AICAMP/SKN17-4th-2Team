@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Room Mate – 로그인</title>
+<style>
+  :root{
+    --line:#e5e7eb;
+    --muted:#6b7280;
+    --brand:#111827;
+    --link:#7c8cf8;
+    --field:#f3f4f6;
+    --btn:#7a7a7a;
+    --radius:14px;
+    --shadow:0 2px 10px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    color:#111827;
+    background:#fff;
+  }
+  .topbar{
+    height:56px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:flex-start; /* 오른쪽 버튼 제거로 좌측 정렬 */
+    padding:0 22px;
+  }
+  .logo{
+    font-family:"Times New Roman",serif;
+    font-style:italic;
+    font-size:22px;
+    text-decoration:none;
+    color:#111827;
+  }
+  .wrap{
+    min-height:calc(100vh - 56px);
+    display:grid;
+    place-items:center;
+    padding:6vh 16px 10vh;
+  }
+  .panel{width:min(520px,92vw);text-align:center;}
+  .title{font-size:32px;font-weight:700;margin:4vh 0 28px;}
+  .field{margin:14px auto;text-align:left;}
+  .input{
+    width:100%;
+    padding:14px 16px;
+    border-radius:18px;
+    border:1px solid var(--line);
+    background:var(--field);
+    font-size:15px;
+  }
+  .input:focus{
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(124,140,248,.2);
+    border-color:#c7cffc;
+    outline:0;
+  }
+  .helpers{
+    display:flex;
+    justify-content:space-between;
+    margin:8px 2px 20px;
+    font-size:13px;
+  }
+  .helpers a{color:var(--link);text-decoration:none;}
+  .helpers a:hover{text-decoration:underline;}
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:220px;
+    height:48px;
+    border-radius:16px;
+    border:0;
+    background:var(--btn);
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:var(--shadow);
+  }
+  .btn:hover{filter:brightness(1.05);}
+  .sr-only{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="intro.html">Room Mate</a>
+    <!-- 오른쪽 로그인 버튼 완전히 삭제됨 -->
+  </header>
+
+  <main class="wrap">
+    <form class="panel" onsubmit="handleLogin(event)">
+      <h1 class="title">로그인</h1>
+      <div class="field">
+        <label class="sr-only" for="email">이메일</label>
+        <input class="input" id="email" type="email" placeholder="이메일" required />
+      </div>
+      <div class="field">
+        <label class="sr-only" for="pw">비밀번호</label>
+        <input class="input" id="pw" type="password" placeholder="비밀번호" required />
+      </div>
+      <div class="helpers">
+        <a href="sign.html">회원가입</a>
+        <a href="password_reset.html">비밀번호 재설정</a>
+      </div>
+      <button class="btn" type="submit">로그인</button>
+    </form>
+  </main>
+
+<script>
+  function handleLogin(e){
+    e.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const pw = document.getElementById('pw').value.trim();
+    if(!email || !pw){
+      alert('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    // 로그인 성공 시 chat.html로 이동
+    window.location.href = 'chat.html';
+  }
+</script>
+</body>
+</html>
