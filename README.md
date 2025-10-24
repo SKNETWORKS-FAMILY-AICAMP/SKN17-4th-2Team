@@ -1,4 +1,4 @@
-# SKN09-4th-4Team
+# SKN17-4th-2Team
 
 <br>
 
@@ -50,9 +50,9 @@
 
 <div align="center">
 
-  |김도연|김우중|김정훈|이윤재|
-|-------|-------|---------|-------|
-| [@doyeon](https://github.com/doyeon158)  | [@kwj9942](https://github.com/kwj9942)  | [@Zayden](https://github.com/Zayden0815)  | [@dadambi](https://github.com/dadambi116)   |
+  |김태완|성기혁|임산별|양송이|김주서|
+|-------|-------|---------|-------|-------|
+| [@doyeon](https://github.com/doyeon158)  | [@kwj9942](https://github.com/kwj9942)  | [@Zayden](https://github.com/Zayden0815)  | [@dadambi](https://github.com/dadambi116)   |[@dadambi](https://github.com/dadambi116)   |
 
 </div>
 
