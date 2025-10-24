@@ -6,7 +6,7 @@
 
 | 김주서 | 김태완 | 성기혁 | 양송이 | 임산별 |
 |:---:|:---:|:---:|:---:|:---:|
-| <img src="img/KakaoTalk_20250925_111729446_02.jpg" width="120"/> | <img src="img/KakaoTalk_20250925_111729446_03.jpg" width="120"/> | <img src="img/KakaoTalk_20250925_111729446_04.jpg" width="120"/> | <img src="img/KakaoTalk_20250925_111729446_01.jpg" width="120"/> | <img src="img/KakaoTalk_20250925_111729446.jpg" width="120"/> |
+| <img src="img/KJS.jpg" width="120"/> | <img src="img/KTW.jpg" width="120"/> | <img src="img/SGH.jpg" width="120"/> | <img src="img/YSE.jpg" width="120"/> | <img src="img/ISB.jpg" width="120"/> |
 | [@kimjuseo71](https://github.com/kimjuseo71) | [@Kicangel](https://github.com/Kicangel) | [@venus241004](https://github.com/venus241004) | [@songeeeey](https://github.com/songeeeey) | [@ImMountainStar](https://github.com/ImMountainStar) |
 
 ---
