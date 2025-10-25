@@ -180,7 +180,7 @@
 <body>
   <!-- Header -->
   <header class="hdr">
-    <a class="logo" href="main.html" aria-label="Room Mate 홈으로">Room Mate</a>
+    <a class="logo" href="{% url 'user:index' %}" aria-label="Room Mate 홈으로">Room Mate</a>
     <div id="authButtonContainer"></div>
   </header>
 
@@ -224,6 +224,7 @@
     const startBtn = document.getElementById('startBtn');
     startBtn.disabled = false;
     startBtn.classList.add('enabled');
+    
     const btnPrev = document.getElementById('btnPrev');
     const btnNext = document.getElementById('btnNext');
     const dotsWrap = document.getElementById('dots');
@@ -290,59 +291,48 @@
     }, {passive:true});
     viewport.addEventListener('touchend', ()=>{
       touching = false;
-      if (Math.abs(dx) > 50) {
-        if (dx < 0) {
-          next();
-        } else {
-          prev();
-        }
-      }
+      if (Math.abs(dx) > 50) { (dx < 0) ? next() : prev(); }
     });
 
-    startBtn.addEventListener('click', ()=>{
-  if (startBtn.disabled) return;
-
-  const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
-
-  if (isLoggedIn) {
-    window.location.href = 'chat.html';
-  } else {
-    window.location.href = 'login.html';
-  }
+  const isLoggedIn = {{ is_logged_in|yesno:"true,false" }};
+  const userEmail = "{{ user_email|escapejs }}";
+  
+  startBtn.addEventListener('click', ()=>{
+    if (startBtn.disabled) return;
+      if (isLoggedIn) {
+        window.location.href = "{% url 'chat:chat_main' %}";
+      } else {
+        window.location.href = "{% url 'user:login' %}";
+      }
 });
 
     // 페이지 진입시 로그인/로그아웃 여부에 따른 UI
     const authContainer = document.getElementById('authButtonContainer');
-const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
-const userEmail = sessionStorage.getItem("userEmail");
 
-if (isLoggedIn) {
-  authContainer.innerHTML = `
-    <div class="sidebar-footer" id="accountBtn" tabindex="0" aria-haspopup="menu" aria-expanded="false">
-      <span>📧</span><span class="mail" id="user-email">${userEmail}</span>
-      <div class="account-menu" id="accountMenu" role="menu" aria-label="계정 메뉴">
-        <a class="account-item" href="#" id="logoutBtn">로그아웃</a>
-        <a class="account-item" href="password_modify.html">비밀번호 수정</a>
-        <a class="account-item danger" href="#" id="openWithdraw">회원탈퇴</a>
-      </div>
-    </div>
-  `;
-  
-  // 로그아웃 버튼 이벤트 등록
-  document.addEventListener('DOMContentLoaded', () => {
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.addEventListener("click", () => {
-        sessionStorage.removeItem("isLoggedIn");
-        sessionStorage.removeItem("userEmail");
-        window.location.href = "main.html"; //메인 페이지 이동 
+    if (isLoggedIn) {
+          authContainer.innerHTML = `
+            <div class="sidebar-footer" id="accountBtn" tabindex="0" aria-haspopup="menu" aria-expanded="false">
+              <span>📧</span><span class="mail" id="user-email">${userEmail}</span>
+              <div class="account-menu" id="accountMenu" role="menu" aria-label="계정 메뉴">
+                        <a class="account-item" href="{% url 'user:logout' %}">로그아웃</a>
+                        <a class="account-item" href="{% url 'user:password_modify' %}">비밀번호 수정</a>
+                <a class="account-item danger" href="#" id="openWithdraw">회원탈퇴</a>
+              </div>
+            </div>
+          `;
+
+      const accountBtn = document.getElementById('accountBtn');
+      const accountMenu = document.getElementById('accountMenu');  
+      
+      accountBtn.addEventListener('click', () => {
+        const expanded = accountBtn.getAttribute('aria-expanded') === "true";
+        accountBtn.setAttribute('aria-expanded', String(!expanded));
+        accountMenu.classList.toggle('open');
       });
-    }
-  });
 
 } else {
   authContainer.innerHTML = `
-    <a class="toplink" href="login.html">로그인</a>
+    <a class="toplink" href="{% url 'user:login' %}">로그인</a>
   `;
 }
 

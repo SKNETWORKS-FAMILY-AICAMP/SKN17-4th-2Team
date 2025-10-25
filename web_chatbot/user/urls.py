@@ -27,4 +27,7 @@ urlpatterns = [
     path('api/send_modify_code/', views.api_send_modify_code, name='api_send_modify_code'),
     path('api/verify_modify_code/', views.api_verify_modify_code, name='api_verify_modify_code'),
     path('api/set_new_password/', views.api_set_new_password, name='api_set_new_password'),
+
+    # 6. 로그아웃 경로
+    path('logout/', views.logout_view, name='logout'),
 ]

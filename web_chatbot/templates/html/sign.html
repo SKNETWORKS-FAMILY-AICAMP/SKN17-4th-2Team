@@ -89,10 +89,12 @@
 
 
 <body>
+  <form id="csrf_form" style="display: none;">{% csrf_token %}</form>
+
   <header class="topbar">
     <!-- 요구1: 로고 클릭 시 intro.html -->
-    <a class="logo" href="main.html" title="Intro로 이동">Room Mate</a>
-    <a class="toplink" href="login.html">로그인</a>
+    <a class="logo" href="{% url 'user:index' %}" title="Intro로 이동">Room Mate</a>
+    <a class="toplink" href="{% url 'user:login' %}">로그인</a>
   </header>
 
   <main class="wrap">
@@ -312,9 +314,6 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
   const indicators = {1:step1Indicator, 2:step2Indicator, 3:step3Indicator};
   let currentStep = 1; // 현재 단계
 
-
-
-
   function setActive(step){
     Object.values(indicators).forEach(el=>el.classList.remove('active'));
     indicators[step].classList.add('active');
@@ -346,6 +345,30 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
     document.getElementById('email').focus();
   });
 
+  const csrftoken = document.querySelector('#csrf_form [name=csrfmiddlewaretoken]').value;
+
+  async function apiCall(url, data) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify(data)
+      });
+      const result = await response.json();
+      if (!response.ok) { // 4xx, 5xx 에러
+        alert(result.error || '오류가 발생했습니다.'); // views.py의 {error: '...'}
+        return null;
+      }
+      return result; // views.py의 {message: '...'} 또는 {verified: true}
+    } catch (err) {
+      alert('서버와 통신에 실패했습니다: ' + err);
+      return null;
+    }
+  }
+
   /* ---------- 2단계(이메일 입력/인증) ---------- */
   const emailEl = document.getElementById('email');
   const btnSend = document.getElementById('btnSend');
@@ -371,50 +394,58 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
   }
 
 
-  btnSend.addEventListener('click', ()=>{
+  btnSend.addEventListener('click', async () => {
     const email = emailEl.value.trim();
-    if(!email){ alert('이메일을 입력해주세요.'); return; 
+    if(!email){ alert('이메일을 입력해주세요.'); return; }
+    
+    btnSend.disabled = true;
+    const result = await apiCall("{% url 'user:api_send_sign_code' %}", { email: email });
+    btnSend.disabled = false;
+
+    if (result) {
+      alert('인증코드를 ' + email + ' 로 전송했습니다.');
+      verifyBox.classList.remove('hidden');
+      verified = false; btnNextStep2.disabled = true;
+      startTimer(); codeEl.value=''; codeEl.focus();
     }
-    fetch('/api/register/send-code/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (!data.success) {
-        alert(data.message || '인증코드 전송 실패');
-      } else {
-        alert('인증코드를 ' + email + ' 로 전송했습니다.');
-        verifyBox.classList.remove('hidden');
-        verified = false;
-        btnNextStep2.disabled = true;
-        startTimer();
-        codeEl.value = '';
-        codeEl.focus();
-      }
-      })
-      .catch(() => alert('서버 오류 발생'));
   });
 
-  resend.addEventListener('click', (e)=>{
+  resend.addEventListener('click', async (e)=>{
     e.preventDefault();
-    if(!emailEl.value.trim()){ alert('이메일을 먼저 입력해주세요.'); return; }
-    alert('인증코드를 재전송했습니다.');
-    verified = false; btnNextStep2.disabled = true; startTimer(); codeEl.value=''; codeEl.focus();
+    const email = emailEl.value.trim();
+    if(!email){ alert('이메일을 먼저 입력해주세요.'); return; }
+
+    const result = await apiCall("{% url 'user:api_send_sign_code' %}", { email: email });
+
+    if (result) {
+      alert('인증코드를 재전송했습니다.');
+      verified = false; btnNextStep2.disabled = true; 
+      startTimer(); codeEl.value=''; codeEl.focus();
+  }
   });
 
   codeEl.addEventListener('input', ()=>{
-    let v = codeEl.value.replace(/\D/g,'').slice(0,8);
-    if(v.length > 4) v = v.slice(0,4) + ' - ' + v.slice(4);
-    codeEl.value = v;
+    let v = codeEl.value.replace(/[^a-zA-Z]/g, '');
+    codeEl.value = v.slice(0, 8);
   });
+  codeEl.placeholder = "영문 8자리";
+  codeEl.inputmode = "text";
 
-  btnCheck.addEventListener('click', ()=>{
-    const digits = codeEl.value.replace(/\D/g,'');
+  btnCheck.addEventListener('click', async ()=>{ 
+    const code = codeEl.value.trim();
     if(remain === 0){ alert('시간이 만료되었습니다. 코드를 재전송 해주세요.'); return; }
-    if(digits.length !== 8){ alert('8자리 코드를 입력하세요.'); return; }
-    verified = true; alert('이메일 인증이 완료되었습니다.'); btnNextStep2.disabled = false;
+    if(code.length !== 8){ alert('8자리 영문 코드를 입력하세요.'); return; }
+
+    btnCheck.disabled = true;
+    const result = await apiCall("{% url 'user:api_verify_sign_code' %}", { code: code });
+    btnCheck.disabled = false;
+
+    if (result && result.verified) {
+        verified = true;
+        alert('이메일 인증이 완료되었습니다.'); 
+        btnNextStep2.disabled = false;
+        clearInterval(timerId);
+    }
   });
 
   // 2 → 3 는 '다음'으로만
@@ -458,8 +489,16 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
     });
   });
 
-  nextBtn.addEventListener('click', ()=>{
-    location.href='chat.html';
+  nextBtn.addEventListener('click', async ()=>{
+    const password = pw.value;
+    nextBtn.disabled = true;
+    const result = await apiCall("{% url 'user:api_create_user' %}", { password: password });
+    if (result && result.created) {
+      alert('회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.');
+      location.href = result.redirect_url;
+    } else {
+      nextBtn.disabled = false;
+    }
   });
 
   /* ---------- 단계 인디케이터: 뒤로 가기만 허용 ---------- */

@@ -10,6 +10,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.contrib.auth import logout
 
 # 인증 코드 생성 함수
 def generate_random_code(length=8):
@@ -20,7 +21,11 @@ def generate_random_code(length=8):
 
 # 1. intro.html (시작)
 def index(request):
-    return render(request, 'html/main.html')
+    context = {
+        'is_logged_in': request.user.is_authenticated,
+        'user_email': request.user.email if request.user.is_authenticated else ''
+    }
+    return render(request, 'html/main.html', context)
 
 # ============================================================================
 
@@ -219,7 +224,10 @@ def api_set_reset_password(request):
 # 5. password_modify (비밀번호 수정)
 @login_required
 def password_modify_view(request):
-    return render(request, 'html/password_modify.html')
+    context = {
+        'user_email': request.user.email
+    }
+    return render(request, 'html/password_modify.html', context)
 
 # 5.1 인증 코드 전송 버튼 API
 @login_required
@@ -292,3 +300,7 @@ def api_set_new_password(request):
         except Exception as e:
             return JsonResponse({'error': f'비밀번호 변경 오류: {e}'}, status=500)
     return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+def logout_view(request):
+    logout(request)
+    return redirect('user:index')

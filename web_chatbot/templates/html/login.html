@@ -101,28 +101,36 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="logo" href="main.html">Room Mate</a>
+    <a class="logo" href="{% url 'user:index' %}">Room Mate</a>
   </header>
 
   <main class="wrap">
-    <form class="panel" onsubmit="handleLogin(event)">
+        <form class="panel" method="POST" action="{% url 'user:login' %}">
+      {% csrf_token %}
+
       <h1 class="title">로그인</h1>
 
       <div class="field">
         <label class="sr-only" for="email">이메일</label>
-        <input class="input" id="email" type="email" placeholder="이메일" required />
+                <input class="input" id="email" type="email" name="email" placeholder="이메일" required />
       </div>
 
       <div class="field">
         <label class="sr-only" for="pw">비밀번호</label>
-        <input class="input" id="pw" type="password" placeholder="비밀번호" required />
+                <input class="input" id="pw" type="password" name="password" placeholder="비밀번호" required />
       </div>
 
-      <p id="emailMsg" class="msg"></p>
+      {% if messages %}
+        <div class="field">
+          {% for message in messages %}
+            <p class="msg warn">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
 
       <div class="helpers">
-        <a href="sign.html">회원가입</a>
-        <a href="password_reset.html">비밀번호 재설정</a>
+        <a href="{% url 'user:sign' %}">회원가입</a>
+        <a href="{% url 'user:password_reset' %}">비밀번호 재설정</a>
       </div>
 
       <button class="btn" type="submit">로그인</button>
