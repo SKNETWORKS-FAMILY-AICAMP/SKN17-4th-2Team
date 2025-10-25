@@ -4,18 +4,27 @@ from . import views
 app_name = 'user'
 
 urlpatterns = [
-    path('', views.index, name='index'),                # 1. 시작 페이지
-    path('login/', views.login_view, name='login'),     # 2. 로그인 페이지
+    # 1. intro.html (시작 페이지)
+    path('', views.index, name='index'),
+
+    # 2. login.html (로그인)
+    path('login/', views.login_view, name='login'),
     
-    # 3. 회원가입
-    # (1) 개인정보 약관 동의
-    path('signup/', views.signup_step1_tos, name='signup_step1'),
-    # # (2) 이메일 입력
-    path('signup/email/', views.signup_step2_email, name='signup_step2'),
-    # ⭐️ 2.1 (신규) "전송" 버튼이 호출할 API
-    path('api/send_code/', views.api_send_code, name='api_send_code'),
-    # ⭐️ 2.2 (신규) "확인" 버튼이 호출할 API
-    path('api/verify_code/', views.api_verify_code, name='api_verify_code'),    
-    # # (3) 비밀번호 설정
-    path('signup/password/', views.signup_step3_password, name='signup_step3'),
+    # --- 3. sign.html (회원가입) ---
+    path('sign/', views.sign_view, name='sign'),
+    path('api/send_sign_code/', views.api_send_sign_code, name='api_send_sign_code'),
+    path('api/verify_sign_code/', views.api_verify_sign_code, name='api_verify_sign_code'),
+    path('api/create_user/', views.api_create_user, name='api_create_user'),
+
+    # --- 4. password_rest.html (비밀번호 재설정) ---
+    path('password_reset/', views.password_reset_view, name='password_reset'),
+    path('api/send_reset_code/', views.api_send_reset_code, name='api_send_reset_code'),
+    path('api/verify_reset_code/', views.api_verify_reset_code, name='api_verify_reset_code'),
+    path('api/set_reset_password/', views.api_set_reset_password, name='api_set_reset_password'),
+    
+    # --- 5. password_modify.html (비밀번호 변경, @login_required 필요) ---
+    path('password_modify/', views.password_modify_view, name='password_modify'),
+    path('api/send_modify_code/', views.api_send_modify_code, name='api_send_modify_code'),
+    path('api/verify_modify_code/', views.api_verify_modify_code, name='api_verify_modify_code'),
+    path('api/set_new_password/', views.api_set_new_password, name='api_set_new_password'),
 ]

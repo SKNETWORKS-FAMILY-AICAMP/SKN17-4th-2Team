@@ -1,166 +1,294 @@
 import string
 import random
+import json
 from django.shortcuts import render, redirect
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, update_session_auth_hash
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-
-def index(request):
-    return render(request, 'user/index.html')
-
-def login_view(request):
-    if request.method == 'POST':
-        # --- 1. POST: 로그인 시도 ---
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-
-        # 1-1. 빈 값 검사
-        if not email or not password:
-            messages.error(request, '이메일과 비밀번호를 모두 입력해주세요.')
-            return render(request, 'user/login.html')
-
-        # 1-2. DB 인증 시도 (username 필드에 email 값을 사용)
-        user = authenticate(request, username=email, password=password)
-
-        if user is not None:
-            # 1-3. 인증 성공
-            login(request, user) # ⭐️ 세션 생성 (로그인)
-            
-            # ⭐️ 챗봇 메인 페이지로 리디렉션
-            return redirect('chat:chat_main') 
-        else:
-            # 1-4. 인증 실패
-            messages.error(request, '이메일 또는 비밀번호가 올바르지 않습니다.')
-            return render(request, 'user/login.html')
-
-    else:
-        # --- 2. GET: 로그인 폼 보여주기 ---
-        return render(request, 'user/login.html')
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 
 # 인증 코드 생성 함수
 def generate_random_code(length=8):
-    characters = string.ascii_letters
+    characters = string.ascii_letters   # 영문 8자리
     return "".join(random.choices(characters, k=length))
 
+# ============================================================================
 
-def signup_step1_tos(request):
+# 1. intro.html (시작)
+def index(request):
+    return render(request, 'html/main.html')
+
+# ============================================================================
+
+# 2. login.html (로그인)
+def login_view(request):
     if request.method == 'POST':
-        # 1-1. ⭐️ name="tos_agreed"와 name="privacy_agreed"를 확인
-        tos_agreed = request.POST.get('tos_agreed')
-        privacy_agreed = request.POST.get('privacy_agreed')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
 
-        # 1-2. ⭐️ 둘 다 체크되었는지 확인
-        if tos_agreed == 'on' and privacy_agreed == 'on':
-            # 1-3. 세션에 '동의함' 기록
-            request.session['agreed_to_terms'] = True 
-            # 1-4. 다음 단계(이메일 입력)로 이동
-            return redirect('user:signup_step2')
+        if not email or not password:
+            messages.error(request, '이메일과 비밀번호를 모두 입력해주세요.')
+            return render(request, 'html/login.html')
+
+        # 로그인 시도
+        user = authenticate(request, username=email, password=password)
+
+        # 로그인 O -> 채팅 페이지
+        if user is not None:    
+            login(request, user)
+            return redirect('chat:chat_main')
+        # 로그인 X -> 계속 로그인 페이지
         else:
-            # 1-5. (JS가 비활성화된 경우 등을 대비한) 백엔드 최종 방어
-            messages.error(request, '필수 약관 2가지에 모두 동의하셔야 합니다.')
-            return render(request, 'user/signin_01.html')
+            messages.error(request, '이메일 또는 비밀번호가 올바르지 않습니다.')
+            return render(request, 'html/login.html')
     else:
-        # GET 요청: 약관 동의 폼 보여주기
-        return render(request, 'user/signin_01.html')
-
-# 2단계: 이메일 입력 (signin_02.html)
-def signup_step2_email(request):
-    # 2-0. 1단계 통과 확인
-    if not request.session.get('agreed_to_terms'):
-        return redirect('user:signup_step1')
+        return render(request, 'html/login.html')
     
-    # ⭐️ POST 로직은 모두 api_send_code로 이동
-    # ⭐️ GET 요청은 그냥 템플릿만 렌더링
-    return render(request, 'user/signin_02.html')
+# ============================================================================
 
-from django.http import JsonResponse # ⭐️ 1. JSON 응답용
-import json # ⭐️ 2. JSON 파싱용
+# 3. sign.html (회원가입)
+def sign_view(request):
+    return render(request, 'html/sign.html')
 
-def api_send_code(request):
+# 3.1 인증 코드 전송 버튼 API
+def api_send_sign_code(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         email = data.get('email')
-
         if not email:
             return JsonResponse({'error': '이메일이 필요합니다.'}, status=400)
-            
         if User.objects.filter(email=email).exists():
             return JsonResponse({'error': '이미 가입된 이메일입니다.'}, status=400)
 
-        verification_code = generate_random_code() # (이제 숫자 8자리)
-        request.session['verification_email'] = email
-        request.session['verification_code'] = verification_code
-        
-        message = render_to_string('user/activation_email.html', {'code': verification_code})
+        code = generate_random_code(8)                                          # 인증코드 생성
+        message = render_to_string('html/signup_email.html', {'code': code})    # 전송할 email
+        # email 전송
         try:
             send_mail(
-                subject='[웹 챗봇] 회원가입 인증 코드입니다.',
+                subject='[RoomMate] 회원가입 인증 코드입니다.',
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[email],
                 fail_silently=False,
             )
+            request.session['signup_email'] = email
+            request.session['signup_code'] = code
             return JsonResponse({'message': '인증 코드가 발송되었습니다.'})
         except Exception as e:
             return JsonResponse({'error': f'메일 발송 오류: {e}'}, status=500)
-    
     return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
 
-
-# ⭐️ 2.2 (신규) "확인" 버튼 API
-def api_verify_code(request):
+# 3.2 인증 코드 확인 버튼 API
+def api_verify_sign_code(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         user_code = data.get('code')
-        correct_code = request.session.get('verification_code')
+        correct_code = request.session.get('signup_code')
         
+        # 인증코드 일치하는지 확인
         if user_code == correct_code:
-            request.session['email_verified'] = True
-            if 'verification_code' in request.session:
-                del request.session['verification_code'] 
-            return JsonResponse({'verified': True}) # ⭐️ 성공!
+            request.session['signup_verified'] = True
+            return JsonResponse({'verified': True})
         else:
             return JsonResponse({'verified': False, 'error': '코드가 일치하지 않습니다.'}, status=400)
-    
     return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
 
-# 3단계: 비밀번호 설정 (signin_03.html)
-def signup_step3_password(request):
-    # 3-0. ⭐️ 비정상 접근 방지: 2.5단계를 통과했는지 확인
-    if not request.session.get('email_verified'):
-        return redirect('user:signup_step2')
-
+# 3.3 인증 후 비밀번호 설정 API
+def api_create_user(request):
     if request.method == 'POST':
-        password = request.POST['password']
-        password_confirm = request.POST['password_confirm']
-        
-        if password != password_confirm:
-            messages.error(request, '비밀번호가 일치하지 않습니다.')
-            # ⭐️ 템플릿 이름: signin_03.html
-            return render(request, 'user/signin_03.html')
-        
-        email = request.session.get('verification_email')
-        if not email:
-             return redirect('user:signup_step2') 
+        # 이메일 인증 안하면
+        if not request.session.get('signup_verified'):
+            return JsonResponse({'error': '이메일 인증이 필요합니다.'}, status=403)
 
+        email = request.session.get('signup_email')
+        data = json.loads(request.body)
+        password = data.get('password')
+
+        if not email or not password:
+            return JsonResponse({'error': '세션이 만료되었거나 비밀번호가 없습니다.'}, status=400)
         try:
+            # user 저장
             user = User.objects.create_user(username=email, email=email, password=password)
-            user.is_active = True 
+            user.save()
+            login(request, user)    # 자동 로그인 시킴
+            
+            # 세션 정리
+            request.session.pop('signup_email', None)
+            request.session.pop('signup_code', None)
+            request.session.pop('signup_verified', None)
+            
+            return JsonResponse({'created': True, 'redirect_url': '/chat/'})    # 회원가입 성공하면 로그인 페이지로 이동 ??? 왜냐면 로그인 유지된 채이기 때문
+        except Exception as e:
+            return JsonResponse({'error': f'계정 생성 오류: {e}'}, status=500)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+# ============================================================================
+
+# 4. 비밀번호 재설정
+def password_reset_view(request):
+    return render(request, 'html/password_reset.html')
+
+# 4.1 인증 코드 전송 버튼 API
+def api_send_reset_code(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        email = data.get('email')
+        if not email:
+            return JsonResponse({'error': '이메일을 입력해주세요.'}, status=400) 
+        try:
+            user = User.objects.get(email=email)
+        # (보안 조치) 어떤 이메일이 가입되었는지 추측할 수 없게
+        except User.DoesNotExist:   
+            return JsonResponse({'message': '인증 코드가 발송되었습니다.'})
+
+        code = generate_random_code(8)                                                  # 인증코드 생성
+        message = render_to_string('html/password_reset_email.html', {'code': code})    # 전송할 email
+        # email 전송
+        try:
+            send_mail(
+                subject='[RoomMate] 비밀번호 재설정 인증 코드입니다.',
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            request.session['reset_email'] = email
+            request.session['reset_code'] = code
+            return JsonResponse({'message': '인증 코드가 발송되었습니다.'})
+        except Exception as e:
+            return JsonResponse({'error': f'메일 발송 오류: {e}'}, status=500)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+# 4.2 인증 코드 확인 버튼 API
+def api_verify_reset_code(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_code = data.get('code')
+        correct_code = request.session.get('reset_code')
+        
+        # 인증코드 일치하는지 확인
+        if user_code == correct_code:
+            request.session['reset_verified'] = True 
+            return JsonResponse({'verified': True})
+        else:
+            return JsonResponse({'verified': False, 'error': '코드가 일치하지 않습니다.'}, status=400)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+# 4.3 인증 후 새 비밀번호 설정 API
+def api_set_reset_password(request):
+    if request.method == 'POST':
+        # 이메일 인증 안하면
+        if not request.session.get('reset_verified'):
+            return JsonResponse({'error': '이메일 인증이 필요합니다.'}, status=403)
+
+        email = request.session.get('reset_email')
+        data = json.loads(request.body)
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not email:
+            return JsonResponse({'error': '세션이 만료되었습니다. 1단계부터 다시 시도하세요.'}, status=400)
+        if not new_password or not confirm_password:
+            return JsonResponse({'error': '새 비밀번호를 입력해주세요.'}, status=400)
+        if new_password != confirm_password:
+            return JsonResponse({'error': '새 비밀번호가 일치하지 않습니다.'}, status=400)
+        try:
+            # 새 비밀번호 저장
+            user = User.objects.get(email=email)
+            user.set_password(new_password)
             user.save()
             
-            request.session.flush() # 가입 완료! 모든 세션 삭제
-            login(request, user) # 자동 로그인
+            # 세션 정리
+            request.session.pop('reset_email', None)
+            request.session.pop('reset_code', None)
+            request.session.pop('reset_verified', None)
             
-            return redirect('chat:chat_main') # 챗봇 메인으로
-            
+            return JsonResponse({'changed': True, 'redirect_url': '/login/'})   # 비번 재설정 성공하면 로그인 페이지로 이동
+        except User.DoesNotExist:
+             return JsonResponse({'error': '사용자를 찾을 수 없습니다.'}, status=404)
         except Exception as e:
-            messages.error(request, f'계정 생성 오류: {e}')
-            # ⭐️ 템플릿 이름: signin_03.html
-            return render(request, 'user/signin_03.html')
+            return JsonResponse({'error': f'비밀번호 변경 오류: {e}'}, status=500)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
 
-    # GET 요청: 비밀번호 생성 폼 보여주기
-    # ⭐️ 템플릿 이름: signin_03.html
-    return render(request, 'user/signin_03.html')
+# ============================================================================
+
+# 5. password_modify (비밀번호 수정)
+@login_required
+def password_modify_view(request):
+    return render(request, 'html/password_modify.html')
+
+# 5.1 인증 코드 전송 버튼 API
+@login_required
+def api_send_modify_code(request):
+    if request.method == 'POST':
+        user = request.user
+        code = generate_random_code(8)                                                  # 인증코드 생성
+        message = render_to_string('html/password_modify_email.html', {'code': code})   # 전송할 email
+        # email 전송
+        try:
+            send_mail(
+                subject='[RoomMate] 비밀번호 수정 인증 코드입니다.',
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            request.session['modify_code'] = code
+            return JsonResponse({'message': '인증 코드가 발송되었습니다.'})
+        except Exception as e:
+            return JsonResponse({'error': f'메일 발송 오류: {e}'}, status=500)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+# 5.2 인증 코드 확인 버튼 API
+@login_required
+def api_verify_modify_code(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        user_code = data.get('code')
+        correct_code = request.session.get('modify_code')
+        
+        # 인증코드 일치하는지 확인
+        if user_code == correct_code:
+            request.session['modify_verified'] = True 
+            return JsonResponse({'verified': True})
+        else:
+            return JsonResponse({'verified': False, 'error': '코드가 일치하지 않습니다.'}, status=400)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
+
+# 5.3 인증 후 새 비밀번호 수정 API
+@login_required
+def api_set_new_password(request):
+    if request.method == 'POST':
+        # 이메일 인증 안하면
+        if not request.session.get('modify_verified'):
+            return JsonResponse({'error': '이메일 인증이 필요합니다.'}, status=403)
+
+        data = json.loads(request.body)
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+
+        if not new_password or not confirm_password:
+            return JsonResponse({'error': '새 비밀번호를 입력해주세요.'}, status=400)
+        if new_password != confirm_password:
+            return JsonResponse({'error': '새 비밀번호가 일치하지 않습니다.'}, status=400)
+        try:
+            # 수정된 비밀번호 저장
+            user = request.user
+            user.set_password(new_password)
+            user.save()
+            
+            update_session_auth_hash(request, user)     # 비밀번호 변경 후 로그아웃 방지 기능
+            
+            # 세션 정리
+            request.session.pop('modify_code', None)
+            request.session.pop('modify_verified', None)
+            
+            # 비번 수정 성공하면 로그인 상태로 채팅 페이지로 이동 ????
+            return JsonResponse({'changed': True, 'redirect_url': '/chat/'})    
+        except Exception as e:
+            return JsonResponse({'error': f'비밀번호 변경 오류: {e}'}, status=500)
+    return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
