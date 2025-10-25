@@ -86,6 +86,8 @@
   .btn-primary{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px 16px;cursor:pointer}
 </style>
 </head>
+
+
 <body>
   <header class="topbar">
     <!-- 요구1: 로고 클릭 시 intro.html -->
@@ -310,6 +312,9 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
   const indicators = {1:step1Indicator, 2:step2Indicator, 3:step3Indicator};
   let currentStep = 1; // 현재 단계
 
+
+
+
   function setActive(step){
     Object.values(indicators).forEach(el=>el.classList.remove('active'));
     indicators[step].classList.add('active');
@@ -365,12 +370,31 @@ RoomMate은(는)「개인정보 보호법」등 관련 법령에 따라, 서비�
     }, 1000);
   }
 
+
   btnSend.addEventListener('click', ()=>{
     const email = emailEl.value.trim();
-    if(!email){ alert('이메일을 입력해주세요.'); return; }
-    alert('인증코드를 ' + email + ' 로 전송했습니다.');
-    verifyBox.classList.remove('hidden');
-    verified = false; btnNextStep2.disabled = true; startTimer(); codeEl.value=''; codeEl.focus();
+    if(!email){ alert('이메일을 입력해주세요.'); return; 
+    }
+    fetch('/api/register/send-code/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (!data.success) {
+        alert(data.message || '인증코드 전송 실패');
+      } else {
+        alert('인증코드를 ' + email + ' 로 전송했습니다.');
+        verifyBox.classList.remove('hidden');
+        verified = false;
+        btnNextStep2.disabled = true;
+        startTimer();
+        codeEl.value = '';
+        codeEl.focus();
+      }
+      })
+      .catch(() => alert('서버 오류 발생'));
   });
 
   resend.addEventListener('click', (e)=>{

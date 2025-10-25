@@ -137,27 +137,37 @@
       const emailMsg = document.getElementById('emailMsg');
       
       // 임시 등록된 이메일 목록
-      const registeredEmails = ['test@gmail.com'];
+      // const registeredEmails = ['test@gmail.com'];
 
       if (!email || !pw) {
         alert('이메일과 비밀번호를 입력해주세요.');
         return;
       }
 
-      if (!registeredEmails.includes(email)) {
-        emailMsg.textContent = '가입되지 않은 이메일입니다.';
-        emailMsg.className = 'msg warn';
-        return;
-      }
-
-      // 정상일 경우 초기화
-      emailMsg.textContent = '';
-      emailMsg.className = 'msg';
-
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", email);
+    fetch('/api/login/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pw })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      // 로그인 성공 → 세션 저장 후 이동
+      sessionStorage.setItem("isLoggedIn", "true");
+      sessionStorage.setItem("userEmail", email);
       window.location.href = 'chat.html';
+    } else {
+      // 로그인 실패 메시지
+      emailMsg.textContent = data.message || '이메일 또는 비밀번호가 올바르지 않습니다.';
+      emailMsg.className = 'msg warn';
     }
+  })
+  .catch(error => {
+    console.error('로그인 요청 실패:', error);
+    alert('서버와의 통신에 문제가 발생했습니다.');
+  });
+}
+// 백엔드 요청 {email, password}, 
   </script>
 </body>
 </html>
