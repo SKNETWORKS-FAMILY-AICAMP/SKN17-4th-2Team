@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Room Mate – 채팅 & 세션 로그</title>
+<style>
+/* --- 스타일 생략 (원본 그대로) --- */
+</style>
+</head>
+
+<body class="sidebar-closed">
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <a class="logo-link" href="#" id="logoBtn"><h1>Room Mate</h1></a>
+      <button class="new-chat" id="newChatBtn"><span class="plus">＋</span> 새 채팅</button>
+    </div>
+
+    <div class="logs">
+      <h2>채팅로그</h2>
+      <div id="logList"></div>
+    </div>
+
+    <div class="footer">
+      <div class="account" id="accountWrap">
+        <div class="email" id="emailArea" tabindex="0">
+          <span class="email-dot"></span><span id="emailText">Loading...</span>
+        </div>
+        <div class="account-menu" id="accountMenu">
+          <button class="menu-item" id="logoutBtn">로그아웃</button>
+          <a class="menu-item" href="password_modify.html">비밀번호 수정</a>
+          <button class="menu-item menu-danger" id="openWithdraw">회원탈퇴</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <section id="homeView" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+      <form id="homeSearch">
+        <input id="homeInput" placeholder="무엇이 궁금한가요?" />
+        <button type="submit">시작하기</button>
+      </form>
+    </section>
+
+    <section id="chatView" class="">
+      <div class="toolbar">
+        <div class="dropdown" id="categoryDropdown">
+          <button class="dropdown-btn" id="dropdownBtn">
+            <span id="currentCategory">청년톡</span> ▼
+          </button>
+          <div class="dropdown-list" id="dropdownList">
+            <div class="dropdown-item" data-cat="청년톡">청년톡</div>
+            <div class="dropdown-item" data-cat="신혼부부톡1">신혼부부톡1</div>
+            <div class="dropdown-item" data-cat="신혼부부톡2">신혼부부톡2</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chatBody" style="padding:20px;overflow:auto;height:60vh"></div>
+
+      <div class="footer">
+        <input id="composerInput" placeholder="메시지를 입력하세요..." />
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 회원탈퇴 모달 -->
+<div class="modal-backdrop" id="withdrawBackdrop" aria-hidden="true">
+  <div class="modal" id="withdrawBox">
+    <button class="close-x" id="closeWithdraw">&times;</button>
+    <h2>회원탈퇴 안내</h2>
+    <p>정말 탈퇴하시겠습니까?</p>
+    <button class="cta" id="confirmWithdraw">탈퇴하기</button>
+  </div>
+</div>
+
+<script>
+/* ========== 공용 유틸 ========== */
+const $ = s=>document.querySelector(s);
+const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
+const fmtTime=()=>new Date().toLocaleTimeString();
+const API = path => `/api${path}`;  // 기본 엔드포인트 prefix
+
+/* ========== 전역 상태 ========== */
+const state={
+  logs:[],
+  conversations:{},
+  activeId:null,
+  category:'청년톡'
+};
+
+/* ========== 렌더링 함수 ========== */
+function renderLogs(){
+  const wrap=$("#logList");
+  wrap.innerHTML="";
+  if(state.logs.length===0) return;
+  state.logs.forEach(log=>{
+    const el=document.createElement("div");
+    el.className="log"+(state.activeId===log.id?" active":"");
+    el.dataset.id=log.id;
+    el.innerHTML=`
+      <div class="log-main">
+        <div style="font-weight:700">${log.title}</div>
+        <small>${log.ts}</small>
+      </div>
+      <div class="log-actions" data-stop>
+        <button class="kebab" data-kebab>⋯</button>
+        <div class="log-menu"><button data-delete>삭제</button></div>
+      </div>`;
+    el.addEventListener("click",e=>{
+      if(e.target.closest("[data-stop]"))return;
+      openConversation(log.id);
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function renderConversation(id){
+  const conv=state.conversations[id]||[];
+  const chatBody=$("#chatBody");
+  chatBody.innerHTML="";
+  conv.forEach(m=>{
+    const d=document.createElement("div");
+    d.className="msg"+(m.role==='me'?" me":"");
+    d.textContent=m.text;
+    d.style.marginTop="14px";
+    chatBody.appendChild(d);
+  });
+  chatBody.scrollTop=chatBody.scrollHeight;
+}
+
+/* ========== 페이지 전환 ========== */
+function goHome(){
+  $("#homeView").style.display="flex";
+  $("#chatView").classList.remove("active");
+  state.activeId=null;
+  document.body.classList.add("sidebar-closed");
+  renderLogs();
+}
+function openChat(id){
+  $("#homeView").style.display="none";
+  $("#chatView").classList.add("active");
+  state.activeId=id;
+  renderLogs();
+  renderConversation(id);
+  $("#composerInput").focus();
+}
+
+/* ========== API 연동 함수 ========== */
+// 1️⃣ 채팅로그 목록 불러오기
+async function fetchLogs(){
+  const res = await fetch(API('/conversations'));
+  const data = await res.json();
+  state.logs=data;
+  renderLogs();
+}
+
+// 2️⃣ 대화내용 불러오기
+async function fetchMessages(id){
+  const res = await fetch(API(`/conversations/${id}/messages`));
+  const data = await res.json();
+  state.conversations[id]=data;
+  renderConversation(id);
+}
+
+// 3️⃣ 새 채팅 생성
+async function createNewChat(initialText=""){
+  const res = await fetch(API('/conversations'),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({category:state.category,first_message:initialText})
+  });
+  const chat=await res.json();
+  state.logs.unshift({id:chat.id,title:chat.title,ts:fmtTime()});
+  state.conversations[chat.id]=[];
+  if(initialText) state.conversations[chat.id].push({role:'me',text:initialText});
+  openChat(chat.id);
+}
+
+// 4️⃣ 메시지 전송
+async function sendMessage(id,text){
+  const res = await fetch(API(`/conversations/${id}/messages`),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text})
+  });
+  const reply=await res.json();
+  if(!state.conversations[id]) state.conversations[id]=[];
+  state.conversations[id].push({role:'me',text});
+  state.conversations[id].push({role:'bot',text:reply.answer});
+  renderConversation(id);
+}
+
+// 5️⃣ 로그 삭제
+async function deleteChat(id){
+  await fetch(API(`/conversations/${id}`),{method:'DELETE'});
+  state.logs=state.logs.filter(l=>l.id!==id);
+  delete state.conversations[id];
+  if(state.activeId===id){goHome();}
+  renderLogs();
+}
+
+// 6️⃣ 내 정보 불러오기
+async function fetchProfile(){
+  const res = await fetch(API('/me'));
+  const me = await res.json();
+  $("#emailText").textContent = me.email;
+}
+
+// 7️⃣ 로그아웃
+async function logout(){
+  await fetch(API('/logout'),{method:'POST'});
+  location.href="intro.html";
+}
+
+// 8️⃣ 회원탈퇴
+async function withdraw(){
+  await fetch(API('/account'),{method:'DELETE'});
+  $("#withdrawBox").innerHTML=`
+    <h2>탈퇴가 완료되었습니다.</h2>
+    <p>잠시 후 시작화면으로 이동합니다…</p>`;
+  setTimeout(()=>location.href="intro.html",1500);
+}
+
+/* ========== 사용자 액션 핸들러 ========== */
+$("#menuToggle")?.addEventListener("click",()=>document.body.classList.toggle("sidebar-closed"));
+$("#logoBtn").addEventListener("click",e=>{e.preventDefault();goHome();});
+$("#newChatBtn").addEventListener("click",()=>createNewChat(""));
+$("#homeSearch").addEventListener("submit",e=>{
+  e.preventDefault();
+  const t=$("#homeInput").value.trim();
+  if(t) createNewChat(t);
+});
+
+// 카테고리
+const dropdown=$("#categoryDropdown"),dropdownBtn=$("#dropdownBtn"),dropdownList=$("#dropdownList");
+dropdownBtn.addEventListener("click",()=>dropdown.classList.toggle("open"));
+$$(".dropdown-item",dropdownList).forEach(i=>i.addEventListener("click",()=>{
+  $("#currentCategory").textContent=i.dataset.cat;
+  state.category=i.dataset.cat;
+  dropdown.classList.remove("open");
+}));
+
+// 계정 메뉴
+const accountWrap=$("#accountWrap"),emailArea=$("#emailArea"),accountMenu=$("#accountMenu");
+emailArea.addEventListener("click",e=>{e.stopPropagation();accountMenu.classList.toggle("open");});
+document.addEventListener("click",e=>{if(!accountWrap.contains(e.target))accountMenu.classList.remove("open");});
+
+// 로그아웃
+$("#logoutBtn").addEventListener("click",logout);
+
+// 메시지 전송
+const composer=$("#composerInput");
+composer.addEventListener("keydown",e=>{
+  if(e.key!=="Enter")return;
+  e.preventDefault();
+  const v=composer.value.trim();
+  if(!v||!state.activeId)return;
+  sendMessage(state.activeId,v);
+  composer.value="";
+});
+
+// 로그 삭제
+const logList=$("#logList");
+logList.addEventListener("click",e=>{
+  const kebab=e.target.closest("[data-kebab]");
+  const item=e.target.closest(".log");
+  if(kebab&&item){e.stopPropagation();item.classList.toggle("open");}
+  const delBtn=e.target.closest("[data-delete]");
+  if(delBtn&&item){deleteChat(item.dataset.id);}
+});
+
+// 회원탈퇴 모달
+const openWithdrawBtn=$("#openWithdraw"),backdrop=$("#withdrawBackdrop");
+const closeWithdrawBtn=$("#closeWithdraw"),confirmWithdrawBtn=$("#confirmWithdraw");
+function openWithdrawModal(){backdrop.classList.add("show");backdrop.setAttribute("aria-hidden","false");}
+function closeWithdrawModal(){backdrop.classList.remove("show");backdrop.setAttribute("aria-hidden","true");}
+openWithdrawBtn.addEventListener("click",e=>{e.preventDefault();accountMenu.classList.remove("open");openWithdrawModal();});
+closeWithdrawBtn.addEventListener("click",closeWithdrawModal);
+confirmWithdrawBtn.addEventListener("click",withdraw);
+backdrop.addEventListener("click",e=>{if(e.target===backdrop)closeWithdrawModal();});
+
+/* ========== 초기 실행 ========== */
+async function boot(){
+  document.body.classList.add("sidebar-closed");
+  await fetchProfile();
+  await fetchLogs();
+}
+boot();
+</script>
+</body>
+</html>
