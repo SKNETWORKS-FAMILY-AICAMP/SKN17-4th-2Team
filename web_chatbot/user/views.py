@@ -11,6 +11,7 @@ from django.template.loader import render_to_string
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib.auth import logout
+from django.views.decorators.http import require_POST
 
 # 인증 코드 생성 함수
 def generate_random_code(length=8):
@@ -301,6 +302,24 @@ def api_set_new_password(request):
             return JsonResponse({'error': f'비밀번호 변경 오류: {e}'}, status=500)
     return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
 
+# 6. 로그아웃
 def logout_view(request):
     logout(request)
     return redirect('user:index')
+
+# 7. 회원탈퇴
+@login_required
+@require_POST 
+def api_withdraw_user(request):
+    try:
+        user = request.user
+        
+        user.is_active = False  # 계정 비활성화
+        user.save()
+        
+        logout(request) # 로그아웃
+        
+        return JsonResponse({'success': True, 'redirect_url': '/'})     # 탈퇴 후 메인페이지 돌아감
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

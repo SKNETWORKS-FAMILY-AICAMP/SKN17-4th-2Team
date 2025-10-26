@@ -152,10 +152,10 @@
           <span id="emailText">Email@gmail.com</span>
         </div>
         <div class="account-menu" id="accountMenu" role="menu">
-          <a class="menu-item" href="main.html" role="menuitem">로그아웃</a>
-          <a class="menu-item" href="password_modify.html" role="menuitem">비밀번호 수정</a>
+                    <a class="menu-item" href="{% url 'user:logout' %}" role="menuitem">로그아웃</a>
+                    <a class="menu-item" href="{% url 'user:password_modify' %}" role="menuitem">비밀번호 수정</a>
           <button class="menu-item menu-danger" id="openWithdraw" role="menuitem">회원탈퇴</button>
-        </div>
+      </div>
       </div>
     </div>
   </aside>
@@ -328,12 +328,12 @@ function renderConversation(id){
   chatBody.innerHTML = '';
   conv.forEach(m=>{
     const d = document.createElement('div');
-    d.className = 'msg' + (m.role==='me' ? ' me' : '');
-    d.textContent = m.text;
+    d.className = 'msg' + (m.sender==='user' ? ' me' : ''); 
+    d.textContent = m.content; 
     d.style.marginTop = '14px';
     chatBody.appendChild(d);
   });
-  chatBody.scrollTop = chatBody.scrollHeight;
+  chatBody.scrollTop = chatBody.scrollHeight; // 스크롤 맨 아래로
 }
 
 /*******************************
@@ -357,82 +357,164 @@ function openChat(id){
 /*******************************
  * 3) API wiring
  *******************************/
-// 3-0. helpers
-async function apiJson(url, opts){
-  const res = await fetch(url, opts);
-  if(!res.ok){
-    const msg = await res.text().catch(()=>res.statusText);
-    throw new Error(msg || `HTTP ${res.status}`);
+const csrftoken = document.querySelector('#csrf_form [name=csrfmiddlewaretoken]').value;
+
+async function apiCall(url, data, method = 'POST') {
+  try {
+    const fetchOptions = {
+      method: method,
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken 
+      }
+    };
+    // GET 요청 시 body 제외
+    if (method !== 'GET' && data) {
+      fetchOptions.body = JSON.stringify(data);
+    }
+    
+    const response = await fetch(url, fetchOptions);
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.error || `오류가 발생했습니다. (HTTP ${response.status})`);
+      return null;
+    }
+    return result;
+  } catch (err) {
+    alert('서버와 통신에 실패했습니다: ' + err);
+    return null;
   }
-  return res.json();
 }
 
+
 // 3-1. 채팅로그 목록
-async function fetchLogs(){
-  const data = await apiJson(API('/conversations'));
-  // 기대 형태: [{id, title, ts}]
-  state.logs = data || [];
-  renderLogs();
-}
+// async function fetchLogs(){
+//   const data = await apiJson(API('/conversations'));
+//   // 기대 형태: [{id, title, ts}]
+//   state.logs = data || [];
+//   renderLogs();
+// }
 
 // 3-2. 특정 대화 메시지
 async function fetchMessages(id){
-  const data = await apiJson(API(`/conversations/${id}/messages`));
-  state.conversations[id] = data || [];
-  renderConversation(id);
+  const result = await apiCall("{% url 'chat:api_get_chat_history' chat_id=0 %}".replace('0', id), null, 'GET'); 
+
+  if (result && result.success) {
+    state.conversations[id] = result.messages.map(msg => ({
+        sender: msg.sender,
+        content: msg.content 
+    }));
+    renderConversation(id);
+  } else {
+    state.conversations[id] = [];
+    renderConversation(id);
+  }
 }
 
 // 3-3. 새 채팅 생성 (초기 메시지 optional)
 async function createNewChat(initialText=''){
-  const chat = await apiJson(API('/conversations'), {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ category: state.category, first_message: initialText })
-  });
-  // 서버 응답 예: {id, title}
-  state.logs.unshift({ id: chat.id, title: chat.title, ts: fmtTime() });
-  state.conversations[chat.id] = [];
-  if(initialText) state.conversations[chat.id].push({role:'me', text: initialText});
-  openChat(chat.id);
+  const result = await apiCall("{% url 'chat:api_create_new_chat' %}", {});
+  if (result && result.success) {
+    const newChatId = result.new_chat_id;
+    const initialBotMessage = result.initial_message; // {content, sender:'bot'}
+
+    const newLog = { 
+        id: newChatId, 
+        title: `새 채팅 (${state.category})`,
+        ts: fmtTime() 
+    };
+    state.logs.unshift(newLog); 
+
+    state.conversations[newChatId] = [{ sender: 'bot', content: initialBotMessage.content }]; 
+    
+    if(initialText) {
+        state.conversations[newChatId].push({sender:'user', content: initialText});
+        await sendMessage(newChatId, initialText); 
+    }
+
+    openChat(newChatId);
+  }
 }
 
 // 3-4. 메시지 전송
 async function sendMessage(id, text){
-  const reply = await apiJson(API(`/conversations/${id}/messages`), {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ text })
-  });
-  if(!state.conversations[id]) state.conversations[id] = [];
-  state.conversations[id].push({role:'me', text});
-  state.conversations[id].push({role:'bot', text: reply.answer});
-  renderConversation(id);
+  const result = await apiCall("{% url 'chat:api_send_message' %}", { 
+    chat_id: id, 
+    message: text 
+  }); 
+
+  if (result && result.success) {
+    const botMessage = result.bot_message;
+    if(!state.conversations[id]) state.conversations[id] = []; 
+    
+    state.conversations[id].push({ sender: 'bot', content: botMessage.content }); 
+    renderConversation(id);
+  } else {
+    // (전송 실패 처리 - apiCall이 alert 띄움)
+  }
 }
+
+composer.addEventListener('keydown', async (e)=>{
+  if(e.key !== 'Enter' || e.isComposing) return;
+  e.preventDefault();
+  const val = composer.value.trim();
+  if(!val || !state.activeId) return;
+
+  if(!state.conversations[state.activeId]) state.conversations[state.activeId] = [];
+  state.conversations[state.activeId].push({sender:'user', content: val});
+  renderConversation(state.activeId);
+
+  composer.value = ''; 
+  await sendMessage(state.activeId, val);
+});
 
 // 3-5. 로그 삭제
 async function deleteChat(id){
-  await fetch(API(`/conversations/${id}`), { method:'DELETE' });
-  state.logs = state.logs.filter(l=>l.id!==id);
-  delete state.conversations[id];
-  if(state.activeId===id){ goHome(); }
-  renderLogs();
+  const result = await apiCall("{% url 'chat:api_delete_chat' chat_id=0 %}".replace('0', id), null, 'DELETE'); 
+  
+  if (result && result.success) {
+      state.logs = state.logs.filter(l=>l.id !== id);
+      delete state.conversations[id];
+      if(state.activeId === id){ goHome(); }
+      renderLogs();
+  }
+  // (실패 시 apiCall이 alert 띄움)
 }
 
 // 3-6. 프로필
-async function fetchProfile(){
-  const me = await apiJson(API('/me'));
-  $('#emailText').textContent = me.email || '익명 사용자';
-}
+// async function fetchProfile(){
+//   const me = await apiJson(API('/me'));
+//   $('#emailText').textContent = me.email || '익명 사용자';
+// }
 
 // 3-7. 로그아웃 (앵커 가로채기)
-async function logout(){
-  await fetch(API('/logout'), { method:'POST' });
-  location.href = 'main.html';
-}
+// async function logout(){
+//   await fetch(API('/logout'), { method:'POST' });
+//   location.href = 'main.html';
+// }
 
 // 3-8. 회원탈퇴
 async function withdraw(){
-  await fetch(API('/account'), { method:'DELETE' });
-  showToast();
+  const result = await apiCall("{% url 'user:api_withdraw_user' %}", {}); 
+  
+  if (result && result.success) {
+      showToast(); 
+      finalRedirectUrl = result.redirect_url; 
+  }
+  // (실패 시 apiCall이 alert 띄움)
 }
+
+// ----- 관련 이벤트 리스너 수정 -----
+let finalRedirectUrl = "{% url 'user:index' %}";
+
+$('#confirmWithdraw').addEventListener('click', async ()=>{
+  await withdraw();
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden','true');
+});
+
+$('#toastOk').addEventListener('click', ()=> window.location.href = finalRedirectUrl );
 
 /*******************************
  * 4) Events wiring (kept from chat.html)
@@ -486,6 +568,7 @@ const emailArea = $('#emailArea');
 const accountMenu = $('#accountMenu');
 
 authWire();
+
 function authWire(){
   // 클릭 토글 (데스크톱 호버는 CSS)
   emailArea.addEventListener('click', (e)=>{
@@ -500,10 +583,10 @@ function authWire(){
     }
   });
   // 로그아웃 링크 가로채기 -> API 호출 후 리다이렉트
-  const logoutLink = $("#accountMenu a[href='main.html']");
-  if(logoutLink){
-    logoutLink.addEventListener('click', async (e)=>{ e.preventDefault(); await logout(); });
-  }
+  // const logoutLink = $("#accountMenu a[href='main.html']");
+  // if(logoutLink){
+  //   logoutLink.addEventListener('click', async (e)=>{ e.preventDefault(); await logout(); });
+  // }
 }
 
 // 로그 목록 내 옵션(⋯) & 삭제
@@ -558,14 +641,29 @@ $('#toastOk').addEventListener('click', ()=> window.location.href = 'main.html')
 /*******************************
  * 5) Boot
  *******************************/
-async function boot(){
+function boot(){
   if (window.matchMedia('(max-width: 980px)').matches) {
     document.body.classList.add('sidebar-closed');
   }
-  try{ await fetchProfile(); }catch(e){ /* not signed-in? ignore */ }
-  try{ await fetchLogs(); }catch(e){ /* show empty */ renderLogs(); }
+  
+  state.logs = [
+    {% for chat in chat_history %}
+      { 
+        id: {{ chat.id }}, 
+        title: "{{ chat.title|default:'Untitled Chat'|escapejs }}",
+        ts: "{{ chat.created_at|date:'Y.m.d H:i'|escapejs }}"
+      },
+    {% empty %}
+      // 채팅 기록이 없을 경우 state.logs는 빈 배열 유지
+    {% endfor %}
+  ];
+  
+  $('#emailText').textContent = "{{ user_email|escapejs }}";
+
+`renderLogs();
 }
 boot();
+
 </script>
 
 <script>
