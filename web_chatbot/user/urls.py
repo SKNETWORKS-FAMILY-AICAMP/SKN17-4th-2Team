@@ -30,4 +30,7 @@ urlpatterns = [
 
     # 6. 로그아웃 경로
     path('logout/', views.logout_view, name='logout'),
+
+    # 7. 회원 탈퇴
+    path('withdraw/', views.api_withdraw_user, name = 'api_withdraw_user')
 ]
