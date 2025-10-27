@@ -127,7 +127,7 @@ def api_create_user(request):
             request.session.pop('signup_code', None)
             request.session.pop('signup_verified', None)
             
-            return JsonResponse({'created': True, 'redirect_url': '/chat/'})    # 회원가입 성공하면 로그인 페이지로 이동 ??? 왜냐면 로그인 유지된 채이기 때문
+            return JsonResponse({'created': True, 'redirect_url': '/login/'})    # 회원가입 성공하면 로그인 페이지로 이동 ??? 왜냐면 로그인 유지된 채이기 때문
         except Exception as e:
             return JsonResponse({'error': f'계정 생성 오류: {e}'}, status=500)
     return JsonResponse({'error': '잘못된 요청입니다.'}, status=405)
@@ -313,13 +313,9 @@ def logout_view(request):
 def api_withdraw_user(request):
     try:
         user = request.user
-        
-        user.is_active = False  # 계정 비활성화
-        user.save()
-        
-        logout(request) # 로그아웃
-        
-        return JsonResponse({'success': True, 'redirect_url': '/'})     # 탈퇴 후 메인페이지 돌아감
+        logout(request)              # 세션 무효화
+        user.delete()                # 실제 삭제 (연관 객체 주의)
+        return redirect('user:index')
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

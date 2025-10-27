@@ -6,11 +6,7 @@ from chat.models import Chat, Message
 from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST, require_GET
 import json
-
-# (임시) 챗봇 응답 함수. 나중에 이 함수를 실제 챗봇 RAG 또는 LLM API로 교체
-def get_bot_response(user_message):
-    # ==== 여기에다가 모델 api 추론 코드 작성 ====
-    return f"이것은 '{user_message}'에 대한 임시 챗봇 응답입니다."
+import requests
 
 
 # 1. 채팅 메인
@@ -26,12 +22,11 @@ def chat_main(request):
 
 # 2. 새 채팅 버튼
 @login_required
-@require_POST   # POST 요청만 허용
 def api_create_new_chat(request):
     try:
         new_chat = Chat.objects.create(user=request.user)   # 새 채팅방 생성
         
-        initial_bot_message = "안녕하세요! 무엇을 도와드릴까요? (임시)"     # 챗봇 첫 인사말
+        initial_bot_message = "안녕하세요! 무엇을 도와드릴까요?"     # 챗봇 첫 인사말
         Message.objects.create(
             chat=new_chat,
             content=initial_bot_message,
@@ -89,7 +84,7 @@ def api_send_message(request):
         )
         
         # 챗봇 응답 생성 (임시 함수 호출)
-        bot_response_content = get_bot_response(user_message_content)
+        bot_response_content = call_runpod_api(user_message_content)
         
         # 챗봇 응답 DB에 저장
         bot_msg = Message.objects.create(
@@ -111,27 +106,14 @@ def api_send_message(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-
-
-
-
-
-
-
-# 여기서부터 참고
-# ===========================================================================================
-
-# def call_runpod_api(message, user_info):
-#     try:
-#         api_url = "https://x76r8kryd0u399-7004.proxy.runpod.net/chat"
-#         payload = {
-#             "message": message,
-#             "user_info": user_info
-#         }
-#         res = requests.post(api_url, json=payload, timeout=120)
-#         res.raise_for_status()
-#         data = res.json()
-#         return data.get("response", "⚠️ 응답이 없습니다.")
-#     except Exception as e:
-#         return f"❗ 오류 발생: {str(e)}"
+def call_runpod_api(question: str) -> str:
+    try:
+        api_url = "https://g9jcrtqf5cqb2e-7004.proxy.runpod.net/rag" 
+        payload = {"question": question} 
+        res = requests.post(api_url, json=payload, timeout=120)
+        res.raise_for_status()
+        data = res.json() 
+        return data.get("answer", "⚠️ 응답에 answer 필드가 없습니다.")
+    except Exception as e:
+        return f"❗ 오류 발생: {str(e)}"
 
