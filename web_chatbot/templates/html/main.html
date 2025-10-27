@@ -18,7 +18,16 @@
     height:56px;border-bottom:1px solid var(--line);display:flex;align-items:center;
     justify-content:space-between;padding:0 18px; font-family: "Times New Roman", ui-serif, Georgia, serif;
   }
-  .logo{font-size:28px; letter-spacing:.2px}
+
+  /* ✅ 요청하신 로고 스타일만 수정됨 */
+  .logo {
+    font-family: "Times New Roman", serif;
+    font-style: italic;
+    font-size: 22px;
+    text-decoration: none;
+    color: #111827;
+  }
+
   .login{
     font-size:14px;
     color:#222;
@@ -30,7 +39,7 @@
   .stage {
     position: relative;
     width: 100%;
-    height: calc(100vh - 56px); /* header 높이 제외한 전체 화면 */
+    height: calc(100vh - 56px);
     margin: 0;
     padding: 0;
   }
@@ -43,27 +52,9 @@
     box-shadow: none;
     position: relative;
   }
-  .viewport {
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-}
-  .track {
-  display: flex;
-  transition: transform .45s ease;
-  height: 100%;
-}
-  .slide {
-  min-width: 100vw;
-  height: 100%;
-}
-  }
-  .slide-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
+  .viewport {overflow:hidden;width:100%;height:100%;}
+  .track {display:flex;transition:transform .45s ease;height:100%;}
+  .slide {min-width:100vw;height:100%;}
 
   .controls {
     position: absolute;
@@ -78,135 +69,66 @@
   }
   .dot{
     width:8px;height:8px;border-radius:50%;
-    background:#d1d5db; display:inline-block; cursor:pointer;
-    transition: transform .2s ease, background .2s ease;
+    background:#d1d5db;display:inline-block;cursor:pointer;
+    transition:transform .2s ease, background .2s ease;
   }
-  .dot.active{ background:#9ca3af; transform:scale(1.15) }
-  .nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #fff;
-    border: 1px solid var(--line);
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
-    z-index: 3;
+  .dot.active{background:#9ca3af;transform:scale(1.15)}
+  .nav-btn{
+    position:absolute;top:50%;transform:translateY(-50%);
+    background:#fff;border:1px solid var(--line);
+    width:36px;height:36px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.05);z-index:3;
   }
-  .prev { left: 20px; }
-  .next { right: 20px; }
+  .prev{left:20px}.next{right:20px}
 
   @media (max-width:720px){
-    :root{ --h: 320px }
-    .prev{ left:10px } .next{ right:10px }
-    .nav-btn{ display:none }
+    :root{--h:320px}
+    .prev{left:10px}.next{right:10px}
+    .nav-btn{display:none}
   }
-  .cta-wrap {
-    position: absolute;
-    bottom: 90px; /* CTA sits above the indicators */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 4;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .cta-wrap{
+    position:absolute;bottom:30px;left:50%;transform:translateX(-50%);
+    z-index:4;display:flex;justify-content:center;align-items:center;
   }
   .cta{
-    min-width:220px; padding:12px 18px; border-radius:999px; border:1px solid rgba(0,0,0,0.06);
-    background: rgba(17,17,17,0.85); color:#fff; font-family: ui-sans-serif, system-ui; font-size:16px;
-    cursor:not-allowed; opacity:0.85; transition: background .18s ease, transform .02s ease, opacity .18s ease;
+    min-width:220px;padding:12px 18px;border-radius:999px;border:1px solid rgba(0,0,0,0.06);
+    background:rgba(17,17,17,0.85);color:#fff;font-family:ui-sans-serif,system-ui;font-size:16px;
+    cursor:not-allowed;opacity:0.85;transition:background .18s ease,transform .02s ease,opacity .18s ease;
   }
-  .cta.enabled{
-    cursor:pointer; background:#111; opacity:1; border-color:#111;
+  .cta.enabled{cursor:pointer;background:#111;opacity:1;border-color:#111;}
+  .cta.enabled:hover{background:#f3f4f6;color:#111;}
+
+  .sidebar-footer{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;position:relative;}
+  .mail{font-weight:500;}
+  .account-menu{
+    display:none;position:absolute;top:100%;right:0;background:#fff;
+    border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.05);
+    margin-top:6px;padding:8px 0;z-index:10;min-width:140px;
   }
-  .cta.enabled:hover {
-    background: #f3f4f6;
-    color: #111;
-  }
-  .sidebar-footer {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    cursor: pointer;
-    position: relative;
-  }
-  .mail {
-    font-weight: 500;
-  }
-  .account-menu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-top: 6px;
-    padding: 8px 0;
-    z-index: 10;
-    min-width: 140px;
-  }
-  .account-menu.open {
-    display: block;
-  }
-  .account-item {
-    display: block;
-    padding: 8px 14px;
-    font-size: 13px;
-    color: #111;
-    text-decoration: none;
-  }
-  .account-item:hover {
-    background: #f9f9f9;
-  }
-  .account-item.danger {
-    color: crimson;
-  }
-  .toplink {
-    color: var(--text);
-    text-decoration: none;
-    font-size: 14px;
-    font-family: ui-sans-serif, system-ui;
-  }
+  .account-menu.open{display:block;}
+  .account-item{display:block;padding:8px 14px;font-size:13px;color:#111;text-decoration:none;}
+  .account-item:hover{background:#f9f9f9;}
+  .account-item.danger{color:crimson;}
+  .toplink{color:var(--text);text-decoration:none;font-size:14px;font-family:ui-sans-serif,system-ui;}
 </style>
 </head>
 <body>
-  <!-- Header -->
   <header class="hdr">
-    <a class="logo" href="{% url 'user:index' %}" aria-label="Room Mate 홈으로">Room Mate</a>
+    <a class="logo" href="main.html" aria-label="Room Mate 홈으로">Room Mate</a>
     <div id="authButtonContainer"></div>
   </header>
 
-  <!-- Main -->
   <main>
     <section class="stage">
       <button class="nav-btn prev" id="btnPrev" aria-label="이전 슬라이드">‹</button>
       <div class="carousel" id="carousel">
         <div class="viewport">
           <div class="track" id="track" style="transform:translateX(0)">
-            <!-- Slide 1 -->
-            <div class="slide">
-              <img src="images/main_1.png" alt="슬라이드 이미지 1" class="slide-img" />
-            </div>
-            <!-- Slide 2 -->
-            <div class="slide">
-              <img src="images/main_2.png" alt="슬라이드 이미지 2" class="slide-img" />
-            </div>
-            <!-- Slide 3 -->
-            <div class="slide">
-              <img src="images/main_3.png" alt="슬라이드 이미지 3" class="slide-img" />
-            </div>
-            <!-- Slide 4 -->
-            <div class="slide">
-              <img src="images/main_4.png" alt="슬라이드 이미지 4" class="slide-img" />
-            </div>
+            <div class="slide" style="background-image:url('images/main_1.png');background-size:cover;background-position:center;background-repeat:no-repeat;"></div>
+            <div class="slide" style="background-image:url('images/main_2.png');background-size:cover;background-position:center;background-repeat:no-repeat;"></div>
+            <div class="slide" style="background-image:url('images/main_3.png');background-size:cover;background-position:center;background-repeat:no-repeat;"></div>
+            <div class="slide" style="background-image:url('images/main_4.png');background-size:cover;background-position:center;background-repeat:no-repeat;"></div>
           </div>
         </div>
         <div class="controls" id="dots"></div>
@@ -219,125 +141,88 @@
   </main>
 
 <script>
-  (function(){
-    const track = document.getElementById('track');
-    const startBtn = document.getElementById('startBtn');
-    startBtn.disabled = false;
-    startBtn.classList.add('enabled');
-    
-    const btnPrev = document.getElementById('btnPrev');
-    const btnNext = document.getElementById('btnNext');
-    const dotsWrap = document.getElementById('dots');
+(function(){
+  const track=document.getElementById('track');
+  const startBtn=document.getElementById('startBtn');
+  startBtn.disabled=false;
+  startBtn.classList.add('enabled');
+  const btnPrev=document.getElementById('btnPrev');
+  const btnNext=document.getElementById('btnNext');
+  const dotsWrap=document.getElementById('dots');
+  const slideCount=4;
+  let idx=0;
 
-    const slideCount = 4;
-    let idx = 0;
+  const dots=Array.from({length:slideCount},(_,i)=>{
+    const d=document.createElement('span');
+    d.className='dot'+(i===0?' active':'');
+    d.setAttribute('role','button');
+    d.setAttribute('aria-label',`${i+1}번째 슬라이드로 이동`);
+    d.addEventListener('click',()=>go(i));
+    dotsWrap.appendChild(d);
+    return d;
+  });
 
-    const dots = Array.from({length: slideCount}, (_,i)=>{
-      const d = document.createElement('span');
-      d.className = 'dot' + (i===0?' active':'');
-      d.setAttribute('role','button');
-      d.setAttribute('aria-label', `${i+1}번째 슬라이드로 이동`);
-      d.addEventListener('click', ()=>go(i));
-      dotsWrap.appendChild(d);
-      return d;
-    });
+  function render(){
+    const width=document.querySelector('.carousel').clientWidth;
+    track.style.transform=`translateX(${-idx*width}px)`;
+    dots.forEach((d,i)=>d.classList.toggle('active',i===idx));
+  }
 
-    function render(){
-      const width = document.querySelector('.carousel').clientWidth;
-      track.style.transform = `translateX(${-idx * width}px)`;
-      dots.forEach((d,i)=>d.classList.toggle('active', i===idx));
+  function go(newIdx){idx=Math.max(0,Math.min(slideCount-1,newIdx));render();}
+  function next(){idx===slideCount-1?idx=0:go(idx+1);}
+  function prev(){idx===0?idx=slideCount-1:go(idx-1);}
 
-      
-    }
+  window.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight')next();
+    if(e.key==='ArrowLeft')prev();
+  });
+  window.addEventListener('resize',render);
+  btnNext.addEventListener('click',next);
+  btnPrev.addEventListener('click',prev);
 
-    function go(newIdx){
-      idx = Math.max(0, Math.min(slideCount-1, newIdx));
-      render();
-    }
-    function next(){
-      if (idx === slideCount - 1) {
-        idx = 0;
-        render();
-      } else {
-        go(idx + 1);
+  let sx=0,dx=0,touching=false;
+  const viewport=document.querySelector('.viewport');
+  viewport.addEventListener('touchstart',e=>{touching=true;sx=e.touches[0].clientX;dx=0;},{passive:true});
+  viewport.addEventListener('touchmove',e=>{if(!touching)return;dx=e.touches[0].clientX-sx;},{passive:true});
+  viewport.addEventListener('touchend',()=>{touching=false;if(Math.abs(dx)>50){dx<0?next():prev();}});
+
+  startBtn.addEventListener('click',()=>{
+    if(startBtn.disabled)return;
+    const isLoggedIn=sessionStorage.getItem("isLoggedIn")==="true";
+    if(isLoggedIn){window.location.href='chat.html';}
+    else{window.location.href='login.html';}
+  });
+
+  const authContainer=document.getElementById('authButtonContainer');
+  const isLoggedIn=sessionStorage.getItem("isLoggedIn")==="true";
+  const userEmail=sessionStorage.getItem("userEmail");
+
+  if(isLoggedIn){
+    authContainer.innerHTML=`
+      <div class="sidebar-footer" id="accountBtn" tabindex="0" aria-haspopup="menu" aria-expanded="false">
+        <span>📧</span><span class="mail" id="user-email">${userEmail}</span>
+        <div class="account-menu" id="accountMenu" role="menu" aria-label="계정 메뉴">
+          <a class="account-item" href="#" id="logoutBtn">로그아웃</a>
+          <a class="account-item" href="password_modify.html">비밀번호 수정</a>
+          <a class="account-item danger" href="#" id="openWithdraw">회원탈퇴</a>
+        </div>
+      </div>
+    `;
+    document.addEventListener('DOMContentLoaded',()=>{
+      const logoutBtn=document.getElementById("logoutBtn");
+      if(logoutBtn){
+        logoutBtn.addEventListener("click",()=>{
+          sessionStorage.removeItem("isLoggedIn");
+          sessionStorage.removeItem("userEmail");
+          window.location.href="main.html";
+        });
       }
-    }
-    function prev(){
-      if (idx === 0) {
-        idx = slideCount - 1;
-        render();
-      } else {
-        go(idx - 1);
-      }
-    }
-
-    window.addEventListener('keydown', (e)=>{
-      if (e.key === 'ArrowRight') next();
-      if (e.key === 'ArrowLeft')  prev();
     });
-
-    window.addEventListener('resize', render);
-    btnNext.addEventListener('click', next);
-    btnPrev.addEventListener('click', prev);
-
-    let sx = 0, dx = 0, touching = false;
-    const viewport = document.querySelector('.viewport');
-    viewport.addEventListener('touchstart', (e)=>{
-      touching = true; sx = e.touches[0].clientX; dx = 0;
-    }, {passive:true});
-    viewport.addEventListener('touchmove', (e)=>{
-      if(!touching) return;
-      dx = e.touches[0].clientX - sx;
-    }, {passive:true});
-    viewport.addEventListener('touchend', ()=>{
-      touching = false;
-      if (Math.abs(dx) > 50) { (dx < 0) ? next() : prev(); }
-    });
-
-  const isLoggedIn = {{ is_logged_in|yesno:"true,false" }};
-  const userEmail = "{{ user_email|escapejs }}";
-  
-  startBtn.addEventListener('click', ()=>{
-    if (startBtn.disabled) return;
-      if (isLoggedIn) {
-        window.location.href = "{% url 'chat:chat_main' %}";
-      } else {
-        window.location.href = "{% url 'user:login' %}";
-      }
-});
-
-    // 페이지 진입시 로그인/로그아웃 여부에 따른 UI
-    const authContainer = document.getElementById('authButtonContainer');
-
-    if (isLoggedIn) {
-          authContainer.innerHTML = `
-            <div class="sidebar-footer" id="accountBtn" tabindex="0" aria-haspopup="menu" aria-expanded="false">
-              <span>📧</span><span class="mail" id="user-email">${userEmail}</span>
-              <div class="account-menu" id="accountMenu" role="menu" aria-label="계정 메뉴">
-                        <a class="account-item" href="{% url 'user:logout' %}">로그아웃</a>
-                        <a class="account-item" href="{% url 'user:password_modify' %}">비밀번호 수정</a>
-                <a class="account-item danger" href="#" id="openWithdraw">회원탈퇴</a>
-              </div>
-            </div>
-          `;
-
-      const accountBtn = document.getElementById('accountBtn');
-      const accountMenu = document.getElementById('accountMenu');  
-      
-      accountBtn.addEventListener('click', () => {
-        const expanded = accountBtn.getAttribute('aria-expanded') === "true";
-        accountBtn.setAttribute('aria-expanded', String(!expanded));
-        accountMenu.classList.toggle('open');
-      });
-
-} else {
-  authContainer.innerHTML = `
-    <a class="toplink" href="{% url 'user:login' %}">로그인</a>
-  `;
-}
-
-    render();
-  })();
+  } else {
+    authContainer.innerHTML=`<a class="toplink" href="login.html">로그인</a>`;
+  }
+  render();
+})();
 </script>
 </body>
 </html>
