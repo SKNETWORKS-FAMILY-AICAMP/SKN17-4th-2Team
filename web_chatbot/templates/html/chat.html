@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>Room Mate</title>
+<style>
+  :root{
+    --bg:#fafafa; --panel:#ffffff; --line:#e5e7eb; --muted:#6b7280;
+    --text:#111827; --accent:#6d28d9; --accent-weak:#ede9fe;
+    --chip:#f3f4f6; --bubble:#f5f6f8; --shadow:0 10px 25px rgba(0,0,0,.08);
+    --radius:16px; --sidebar-w:320px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;color:var(--text);background:var(--bg)}
+  button{cursor:pointer;border:0;background:none;font:inherit;color:inherit}
+  a{text-decoration:none;color:inherit}
+
+  /* ===== Layout (sidebar slides) ===== */
+  body{--ml:var(--sidebar-w);} 
+  .app{min-height:100vh}
+  .sidebar{
+    position:fixed;inset:0 auto 0 0;width:var(--sidebar-w);
+    background:#fff;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;gap:16px;transform:translateX(0);
+    transition:transform .32s ease;z-index:30;
+  }
+  .main{
+    margin-left:var(--ml);transition:margin-left .32s ease;
+    display:flex;flex-direction:column;min-height:100vh;background:#fff;
+  }
+  body.sidebar-closed .sidebar{transform:translateX(-100%)}
+  body.sidebar-closed .main{margin-left:0}
+
+  /* ===== Sidebar content ===== */
+  .brand{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 24px;border-bottom:1px solid var(--line);
+  }
+  .brand h1{margin:0;font-size:28px;font-weight:800}
+  .logo-link{display:inline-flex;align-items:center}
+  .new-chat{display:inline-flex;align-items:center;gap:10px;background:var(--accent-weak);padding:10px 14px;border-radius:12px}
+  .new-chat .plus{font-weight:700}
+  .logs{padding:16px;height:100%;overflow:auto}
+  .logs h2{margin:6px 0 12px 4px;font-size:16px;color:#111}
+  .log{
+    background:var(--chip);border:1px solid var(--line);border-radius:12px;
+    padding:12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;
+    cursor:pointer
+  }
+  .log small{color:var(--muted)}
+  .log.active{outline:2px solid #a78bfa}
+  /* small inline kebab for delete (no structure changes) */
+  .log-actions{position:relative;display:flex;align-items:center;}
+  .kebab{padding:4px 8px;border-radius:8px}
+  .kebab:hover{background:#eef2ff}
+  .log-menu{position:absolute;right:0;top:28px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);display:none;overflow:hidden}
+  .log.open .log-menu{display:block}
+  .log-menu button{display:block;padding:8px 12px;width:120px;text-align:left}
+  .log-menu button:hover{background:#f9fafb}
+
+  /* ===== footer email + hover menu ===== */
+  .footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;position:relative}
+  .account{position:relative;display:inline-block}
+  .email{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;background:var(--chip);}
+  .email-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#6366f1}
+  .account-menu{position:absolute;bottom:56px;left:0;background:#fff;border:1px solid var(--line);
+    border-radius:12px;box-shadow:var(--shadow);min-width:200px;overflow:hidden;
+    opacity:0;pointer-events:none;transform:translateY(10px);
+    transition:opacity .2s ease, transform .2s ease;z-index:35;}
+  .account:hover .account-menu,
+  .account:focus-within .account-menu,
+  .account-menu.open{opacity:1;pointer-events:auto;transform:translateY(0);} 
+  .menu-item{display:block;padding:12px 14px}
+  .menu-item:hover{background:#f9fafb}
+  .menu-danger{color:#b91c1c}
+
+  /* ===== Toolbar / Dropdown ===== */
+  .toolbar{display:flex;gap:12px;align-items:center;padding:14px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
+  .pill{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:#fff}
+  .menu-toggle{font-weight:700}
+  .dropdown{position:relative}
+  .dropdown-btn{display:flex;align-items:center;gap:10px}
+  .dropdown-list{position:absolute;top:52px;left:0;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:220px;overflow:hidden;display:none;z-index:20}
+  .dropdown.open .dropdown-list{display:block}
+  .dropdown-item{padding:14px;font-weight:600}
+  .dropdown-item:hover{background:#f9fafb}
+  .hovercard{position:absolute;top:52px;left:230px;width:360px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:16px;display:none;z-index:19}
+  .dropdown.show-card .hovercard{display:block}
+  .hovercard h4{margin:0 0 6px 0}
+  .hovercard p{margin:6px 0;color:var(--muted)}
+  .hovercard ul{margin:8px 0 0 18px}
+  .hovercard li{margin:4px 0}
+
+  /* ===== Home / Chat ===== */
+  .home{display:flex;align-items:center;justify-content:center;flex:1;background:#fff}
+  .hero{max-width:900px;text-align:center;padding:40px}
+  .hero h2{font-size:44px;margin:0 0 14px 0}
+  .hero em{font-style:normal;color:var(--accent);font-weight:900}
+  .hero p{color:var(--muted);margin:4px 0 26px 0}
+  .search{display:flex;background:#fff;border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);max-width:560px;margin:0 auto;overflow:hidden}
+  .search input{width:100%;padding:16px 20px;border:0;font-size:16px;outline:none}
+
+  .chat{flex:1;display:none;background:#fff}
+  .chat.active{display:block}
+  .chat-body{height:calc(100vh - 64px - 68px);overflow:auto;padding:20px}
+  .msg{max-width:620px;padding:14px 16px;background:var(--bubble);border-radius:18px}
+  .msg.me{background:#fff;border:1px solid var(--line)}
+  .composer{border-top:1px solid var(--line);padding:10px;background:#fff}
+  .composer .input{width:100%;border:1px solid var(--line);border-radius:999px;padding:14px 18px}
+
+  /* ===== Modal & Toast ===== */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:40}
+  .modal{background:#fff;border-radius:20px;max-width:880px;width:min(92vw,880px);box-shadow:var(--shadow);overflow:hidden}
+  .modal-header{padding:22px 24px;border-bottom:1px solid var(--line)}
+  .modal-body{padding:20px 24px}
+  .modal-hl{background:#f7fba7;border-radius:30px;padding:40px 24px;margin:18px 0 10px 0;text-align:center;font-size:36px;font-weight:800}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 16px;border-top:1px solid var(--line)}
+  .btn{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:#fff}
+  .btn-primary{background:#111;color:#fff;border-color:#111}
+  .btn-danger{background:#e11d48;color:#fff;border-color:#e11d48}
+  .btn-ghost{background:#fff}
+  .toast{position:fixed;inset:auto 24px 24px auto;background:#111;color:#fff;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:none;z-index:50}
+  .toast button{margin-left:12px;background:#fff;color:#111;border-radius:10px;padding:6px 10px;border:0}
+  .modal-backdrop[aria-hidden="false"] { display: flex; }
+  @media (max-width: 980px){ body{--ml:0} }
+</style>
+</head>
+<body class="sidebar-closed">
+<div class="app">
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" aria-label="채팅 로그 및 계정">
+    <div class="brand">
+      <!-- 로고: 첫 화면으로 (상태 보존) -->
+      <a class="logo-link" href="{% url 'user:index' %}" id="logoBtn" aria-label="Room Mate 홈으로">
+        <h1>Room Mate</h1>
+      </a>
+      <button
+        class="new-chat"
+        id="newChatBtn"
+        aria-label="새 채팅 시작">
+        <span class="plus">＋</span> 새 채팅
+      </button>    
+    </div>
+
+    <div class="logs">
+      <h2>채팅로그</h2>
+      <div id="logList" aria-live="polite"></div>
+    </div>
+
+    <!-- Email hover = menu -->
+    <div class="footer">
+      <div class="account" id="accountWrap">
+        <div class="email" id="emailArea" tabindex="0" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu" aria-label="계정 메뉴 열기">
+          <span class="email-dot"></span>
+          <span id="emailText">{{ user_email }}</span>
+        </div>
+        <div class="account-menu" id="accountMenu" role="menu">
+                    <a class="menu-item" href="{% url 'user:logout' %}" role="menuitem">로그아웃</a>
+                    <a class="menu-item" href="{% url 'user:password_modify' %}" role="menuitem">비밀번호 수정</a>
+                    <button class="menu-item menu-danger" id="openWithdraw" role="menuitem">회원탈퇴</button>
+      </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="main">
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="pill menu-toggle" id="menuToggle" aria-label="사이드바 열기/닫기">☰</button>
+
+      <div class="dropdown" id="categoryDropdown" data-current="청년톡">
+      <button class="pill dropdown-btn" id="dropdownBtn" type="button" aria-haspopup="true" aria-expanded="false">
+        <span id="currentCategory">청년톡</span> ▾
+      </button>
+      <div class="dropdown-list" id="dropdownList">
+        <div class="dropdown-item" data-cat="청년톡">청년톡</div>
+        <div class="dropdown-item" data-cat="신혼부부톡 (I)">신혼부부톡 (I)</div>
+        <div class="dropdown-item" data-cat="신혼부부톡 (II)">신혼부부톡 (II)</div>
+      </div>
+      <div class="hovercard" id="hoverCard"></div> <!-- 안 쓰면 삭제 OK -->
+    </div>
+    </div>
+
+    <!-- Home -->
+    <section class="home" id="homeView" aria-label="메인">
+      <div class="hero">
+        <h2>내 집 마련의 첫걸음, <em>Room Mate</em>가 함께합니다</h2>
+        <p>청약부터 대출까지, 주거 고민은 Room Mate에게 맡겨보세요.</p>
+        <form class="search" id="homeSearch" autocomplete="off">
+          <input id="homeInput" type="text" placeholder="질문을 입력하세요" aria-label="질문을 입력하세요" />
+        </form>
+      </div>
+    </section>
+
+    <!-- Chat -->
+    <section class="chat" id="chatView" aria-label="채팅">
+      <div class="chat-body" id="chatBody"></div>
+      <div class="composer">
+        <input class="input" id="composerInput" type="text" placeholder="질문을 입력하세요" />
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== Withdraw Modal ===== -->
+<div class="modal-backdrop" id="withdrawModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="withdrawTitle">
+    <div class="modal-header">
+      <h3 id="withdrawTitle" style="margin:0;font-size:24px;font-weight:800">회원 탈퇴 전 안내</h3>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:18px;color:var(--muted)">
+        지금까지 Room mate 서비스를 이용해 주셔서 정말 감사 드립니다. 더욱 개선된 서비스로 청년들에게 도움이 될 수 있도록 하겠습니다. 탈퇴하기전 아래 유의사항을 확인해주세요.
+      </p>
+      <ul style="font-size:18px">
+        <li>탈퇴하신 아이디는 <b>복구가 불가능</b>합니다.</li>
+        <li>해당 사용자의 이메일 주소, 비밀번호와 지금까지 기록된 채팅 내역들이 삭제되며, <b>삭제된 데이터는 복구되지 않습니다</b></li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="closeModal">닫기</button>
+      <form method="post" action="{% url 'user:api_withdraw_user' %}">
+        {% csrf_token %}
+        <button class="btn btn-danger" type="button" onclick="alert('정말 탈퇴하시겠어요?')">확인 및 탈퇴하기</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  회원 탈퇴가 완료되었습니다.
+  <button id="toastOk">확인</button>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+$(function(){
+  const $modal = $('#withdrawModal');
+  $(document).on('click', '#openWithdraw', function(){
+    console.log('open click');                   // 디버깅
+    $modal.attr('aria-hidden','false');          // 열기
+    $('body').css('overflow','hidden');
+  });
+
+  $(document).on('click', '#closeModal', function(){
+    $modal.attr('aria-hidden','true');           // 닫기
+    $('body').css('overflow','');
+  });
+
+  // 백드롭 클릭으로 닫기
+  $modal.on('click', function(e){
+    if(e.target === this){
+      $modal.attr('aria-hidden','true');
+      $('body').css('overflow','');
+    }
+  });
+
+  // ESC로 닫기
+  $(document).on('keydown', function(e){
+    if(e.key === 'Escape' && $modal.attr('aria-hidden') === 'false'){
+      $modal.attr('aria-hidden','true');
+      $('body').css('overflow','');
+    }
+  });
+});
+
+(function () {
+    const $dropdown = document.getElementById('categoryDropdown'); // .dropdown
+    const $btn      = document.getElementById('dropdownBtn');      // .dropdown-btn
+    const $list     = document.getElementById('dropdownList');     // .dropdown-list
+    const $label    = document.getElementById('currentCategory');  // 현재 표시 텍스트
+
+    // 열기/닫기
+    $btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      $dropdown.classList.toggle('open');
+    });
+
+    // 항목 선택
+    $list.addEventListener('click', (e) => {
+      const item = e.target.closest('.dropdown-item');
+      if (!item) return;
+      const val = item.dataset.cat || item.textContent.trim();
+      $label.textContent = val;                 // 버튼 라벨 바꾸기
+      $dropdown.dataset.current = val;          // 필요하면 현재값 저장
+      $dropdown.classList.remove('open');       // 닫기
+    });
+
+    // 바깥 클릭/ESC로 닫기
+    document.addEventListener('click', () => $dropdown.classList.remove('open'));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') $dropdown.classList.remove('open');
+    });
+  })();
+
+/*******************************
+ * 카테고리 설명 (hovercard)
+ *******************************/
+  const CATEGORY_HELP = {
+    '청년톡': `
+      <h4>청년톡</h4>
+      <p>무주택 요건 및 소득·자산 기준을 충족하고 다음 어느 하나에 해당하는 미혼 청년</p>
+      <ul>
+        <li><b>만 19세 이상 만 39세 이하</b>인 사람</li>
+        <li><b>대학생</b> (입학 및 복학 예정자 포함)</li>
+        <li><b>취업준비생</b> (졸업·중퇴 2년 이내 미취업자)</li>
+      </ul>`,
+    '신혼부부톡 (I)': `
+      <h4>신혼부부톡 (I)</h4>
+      <p>전년도 도시근로자 가구당 월평균 소득 70% 이하(배우자 소득이 있는 경우 90% 이하) 충족, 국민임대주택 자산기준 충족</p>
+      <p>무주택 요건 및 소득·자산 기준을 충족하고 다음 어느 하나에 해당</p>
+      <ul>
+        <li><b>신혼부부</b> : 혼인 7년 이내</li>
+        <li><b>예비신혼부부</b> : 입주일 전일까지 혼인신고 예정</li>
+        <li><b>한부모가족</b> : 만 6세 이하 자녀를 둔 한부모가족(또는 미성년 자녀를 둔 지원대상 한부모가족)</li>
+        <li><b>유자녀 혼인가구</b> : 만 6세 이하 자녀가 있는 혼인가구</li>
+        <li><b>신생아 가구</b> : 만 2세 이하 자녀가 있는 가구</li>
+        <li><b>혼인가구</b> : 혼인한 가구</li>
+      </ul>`,
+    '신혼부부톡 (II)': `
+      <h4>신혼부부톡 (II)</h4>
+      <p>무주택 요건 및 소득·자산 기준을 충족하고 다음 어느 하나에 해당</p>
+      <ul>
+        <li><b>신혼부부</b> : 혼인 7년 이내</li>
+        <li><b>예비신혼부부</b> : 입주일 전일까지 혼인신고 예정</li>
+        <li><b>한부모가족</b> : 만 6세 이하 자녀를 둔 한부모가족(또는 미성년 자녀를 둔 지원대상 한부모가족)</li>
+        <li><b>유자녀 혼인가구</b> : 만 6세 이하 자녀가 있는 혼인가구</li>
+        <li><b>신생아 가구</b> : 만 2세 이하 자녀가 있는 가구</li>
+        <li><b>혼인가구</b> : 혼인한 가구</li>
+      </ul>`,
+  };
+  document.addEventListener('DOMContentLoaded', () => {
+    const dropdown   = document.getElementById('categoryDropdown');
+    const list       = document.getElementById('dropdownList');
+    const items      = list.querySelectorAll('.dropdown-item');
+    const hoverCard  = document.getElementById('hoverCard');
+
+    // 헬퍼: 호버카드 표시
+    function showCard(target, html) {
+      hoverCard.innerHTML = html;
+
+      // 위치 계산 (드롭다운 박스를 기준으로)
+      const itemRect  = target.getBoundingClientRect();
+      const wrapRect  = dropdown.getBoundingClientRect();
+
+      const top  = itemRect.top - wrapRect.top;                 // 항목의 드롭다운 내 상대 top
+      const left = itemRect.right - wrapRect.left + 8;          // 항목 오른쪽 + 여백
+
+      hoverCard.style.top  = `${top}px`;
+      hoverCard.style.left = `${left}px`;
+      hoverCard.style.display = 'block';
+    }
+
+    function hideCard() {
+      hoverCard.style.display = 'none';
+      hoverCard.innerHTML = '';
+    }
+
+    // 항목 hover/focus 시 카드 표시
+    items.forEach((it) => {
+      const cat = it.dataset.cat;
+
+      it.addEventListener('mouseenter', () => {
+        const html = CATEGORY_HELP[cat] || `<strong>${cat}</strong>`;
+        showCard(it, html);
+      });
+      it.addEventListener('mouseleave', hideCard);
+
+      // 키보드 접근성: 포커스/블러
+      it.setAttribute('tabindex', '-1'); // 드롭다운 열렸을 때만 포커스 이동하는 구조라면 -1 유지
+      it.addEventListener('focus', () => {
+        const html = CATEGORY_HELP[cat] || `<strong>${cat}</strong>`;
+        showCard(it, html);
+      });
+      it.addEventListener('blur', hideCard);
+    });
+
+    // 리스트가 닫히거나 스크롤/리사이즈 시 숨기기 (안전장치)
+    document.addEventListener('scroll', hideCard, { passive: true });
+    window.addEventListener('resize', hideCard);
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target)) hideCard();
+    });
+  });
+
+  const btn = document.getElementById('menuToggle');
+  btn.addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-closed');
+    // 접근성 갱신(선택)
+    const expanded = !document.body.classList.contains('sidebar-closed');
+    btn.setAttribute('aria-expanded', String(expanded));
+  })
+
+
+/* ===== 0) 유틸 ===== */
+function getCsrf() {
+  const el = document.querySelector('meta[name="csrf-token"]');
+  return el ? el.content : '';
+}
+function appendMessage(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg' + (role === 'me' ? ' me' : '');
+  d.textContent = text;
+  const body = document.getElementById('chatBody');
+  body.appendChild(d);
+  body.scrollTop = body.scrollHeight;
+}
+function showTyping() {
+  let t = document.getElementById('typing');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'typing';
+    t.className = 'msg';
+    t.textContent = '…';
+    document.getElementById('chatBody').appendChild(t);
+  }
+}
+function hideTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+/* ===== 1) 새 채팅 (이미 있으니 그대로 사용) ===== */
+async function createNewChat(){
+  try{
+    const res  = await fetch("{% url 'chat:api_create_new_chat' %}");
+    if (!res.ok) throw new Error('bad response');
+    const data = await res.json();
+    if (!data.success) return alert(data.error || "생성 실패");
+
+    // 1) chatId 먼저
+    window.currentChatId = data.new_chat_id;
+
+    // 2) 사이드바 로그 보장
+    ensureLog(window.currentChatId);
+
+    // (선택) 초기 봇 메시지를 미리 저장만 하고 화면엔 안 보여주고 싶다면:
+    // appendMessage('bot', data.initial_message.content);
+
+    // 3) 홈 화면으로 전환
+    showHome();
+  } catch (e) {
+    console.error(e);
+    alert("요청 실패");
+  }
+}
+
+/* ===== 2) 메시지 전송 =====
+   - 아직 대화방이 없으면 먼저 createNewChat() 호출
+   - 사용자 입력을 추가로 렌더 → 서버에 전송 → 봇 답변 렌더 */
+async function sendUserMessage(text) {
+  // 2-1) 채팅방 보장
+  showChat();
+  if (!window.currentChatId) {
+    await createNewChat();
+    if (!window.currentChatId) return; // 생성 실패 시 중단
+  }
+
+  // 2-2) 사용자 말 먼저 그리기
+  appendMessage('me', text);
+
+  // 2-3) 서버에 전송
+  const input = document.getElementById('composerInput');
+  input.disabled = true;
+  showTyping();
+  try {
+    const res = await fetch("{% url 'chat:api_send_message' %}", {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrf(),
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: window.currentChatId,
+        message: text
+      })
+    });
+    const data = await res.json();
+    hideTyping();
+    if (!res.ok || !data.success) {
+      appendMessage('bot', '죄송해요. 답변을 가져오지 못했어요.');
+      return;
+    }
+    // 2-4) 봇 답변 렌더
+     const botText = data.bot_message && data.bot_message.content
+                ? data.bot_message.content
+                : '…';
+      appendMessage('bot', botText);
+  } catch (err) {
+    hideTyping();
+    appendMessage('bot', '네트워크 오류가 발생했어요.');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+/* ===== 3) 입력창 이벤트 ===== */
+const composerInput = document.getElementById('composerInput');
+composerInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const text = composerInput.value.trim();
+    if (!text) return;
+    composerInput.value = '';
+    sendUserMessage(text);
+  }
+});
+
+/* ===== 4) 홈 화면의 검색폼으로도 시작 가능 (원하면 사용) ===== */
+const homeForm  = document.getElementById('homeSearch');
+const homeInput = document.getElementById('homeInput');
+homeForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = homeInput.value.trim();
+  if (!text) return;
+  homeInput.value = '';
+  // 새 채팅 생성 + 첫 메시지 전송
+  if (!window.currentChatId) await createNewChat();
+  showChat();
+  sendUserMessage(text);
+});
+
+/* =========================
+ * 채팅로그(사이드바) 제목 관리
+ * ========================= */
+const chatLogs = new Map(); // chatId -> { el, titleSet }
+const $logList = document.getElementById('logList');
+
+/** 텍스트 줄임 (한글 포함 안전) */
+function ellipsis(str, max = 32){
+  if (!str) return '';
+  const s = str.replace(/\s+/g,' ').trim();
+  return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
+/** 로그 DOM 생성 */
+function createLogElement(chatId, titleText){
+  const log = document.createElement('div');
+  log.className = 'log';
+  log.dataset.id = String(chatId);
+  log.setAttribute('role','button');
+  log.setAttribute('tabindex','0');
+
+  const left = document.createElement('div');
+  const h = document.createElement('div');
+  h.style.fontWeight = '700';
+  h.style.marginBottom = '4px';
+  h.className = 'log-title';
+  h.textContent = titleText || '새 채팅';
+
+  const sm = document.createElement('small');
+  sm.textContent = '방금';
+
+  left.appendChild(h);
+  left.appendChild(sm);
+
+  // (선택) 우측 케밥 메뉴 껍데기 — 스타일은 이미 CSS에 있음
+  const actions = document.createElement('div');
+  actions.className = 'log-actions';
+  const kebab = document.createElement('button');
+  kebab.className = 'kebab';
+  kebab.setAttribute('aria-label','채팅 로그 메뉴');
+  kebab.textContent = '⋮';
+  const menu = document.createElement('div');
+  menu.className = 'log-menu';
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '삭제';
+  menu.appendChild(delBtn);
+  actions.appendChild(kebab);
+  actions.appendChild(menu);
+
+  log.appendChild(left);
+  log.appendChild(actions);
+
+  // 클릭 시 활성화 표시만 (데이터 로딩은 기존 흐름 사용)
+  log.addEventListener('click', (e)=>{
+    // 케밥 클릭은 패스
+    if (e.target.closest('.kebab') || e.target.closest('.log-menu')) return;
+    document.querySelectorAll('.log.active').forEach(n=>n.classList.remove('active'));
+    log.classList.add('active');
+  });
+
+  // 케밥 토글
+  kebab.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    log.classList.toggle('open');
+    // 바깥 클릭 시 닫기
+    const off = (ev)=>{
+      if (!log.contains(ev.target)) { log.classList.remove('open'); document.removeEventListener('click', off); }
+    };
+    document.addEventListener('click', off);
+  });
+
+  // (선택) 삭제 버튼 동작 — UI만 제거 (서버 연동 원하면 여기에 fetch 추가)
+  delBtn.addEventListener('click', ()=>{
+    chatLogs.delete(chatId);
+    log.remove();
+  });
+
+  return log;
+}
+
+/** 로그가 없으면 만들고, 있으면 활성화만 */
+function ensureLog(chatId){
+  if (chatLogs.has(chatId)) return chatLogs.get(chatId).el;
+
+  const el = createLogElement(chatId, '새 채팅');
+  $logList.prepend(el);
+  // 방금 만든 것을 active로
+  document.querySelectorAll('.log.active').forEach(n=>n.classList.remove('active'));
+  el.classList.add('active');
+
+  chatLogs.set(chatId, { el, titleSet:false });
+  return el;
+}
+
+/** 첫 사용자 메시지로 제목을 세팅 (한 번만) */
+function setLogTitleFromFirstUserMessage(chatId, userText){
+  const entry = chatLogs.get(chatId) || { el: ensureLog(chatId), titleSet:false };
+  if (entry.titleSet) return; // 이미 제목 설정됨
+
+  const title = ellipsis(userText, 32);
+  entry.el.querySelector('.log-title').textContent = title || '새 채팅';
+  entry.titleSet = true;
+  chatLogs.set(chatId, entry);
+}
+
+/* =========================
+ * 기존 흐름에 살짝 접점 추가
+ * ========================= */
+
+/** 새 채팅 생성 시: 사이드바에 "새 채팅" 한 줄 미리 깔아두기 */
+const _origCreateNewChat = createNewChat;
+createNewChat = async function(){
+  await _origCreateNewChat();
+  if (window.currentChatId){
+    ensureLog(window.currentChatId);
+  }
+};
+
+/** 메시지 전송 시: "첫 번째 사용자 메시지"를 제목으로 확정 */
+const _origSendUserMessage = sendUserMessage;
+sendUserMessage = async function(text){
+  // 전송 직전: 아직 로그가 없을 수도 있으니 보장
+  if (!window.currentChatId) {
+    await createNewChat();
+  }
+  ensureLog(window.currentChatId);
+
+  // 원래 로직 수행
+  await _origSendUserMessage(text);
+
+  // 첫 사용자 메시지로 제목 세팅 (한 번만)
+  setLogTitleFromFirstUserMessage(window.currentChatId, text);
+};
+
+/** 새 채팅 버튼 눌렀을 때 기존 active 해제되도록(가시성 보완) */
+document.getElementById('newChatBtn').addEventListener('click', async ()=>{
+  // 기존 active 제거
+  document.querySelectorAll('.log.active').forEach(n=>n.classList.remove('active'));
+
+  // 새 채팅 생성 호출
+  await createNewChat();
+});
+
+
+function showHome(){
+  const home = document.getElementById('homeView');
+  const chat = document.getElementById('chatView');
+  if (chat) chat.classList.remove('active');     // 채팅 숨김
+  if (home) home.style.display = 'flex';         // 홈 보이기
+}
+
+function showChat(){
+  const home = document.getElementById('homeView');
+  const chat = document.getElementById('chatView');
+  if (chat) chat.classList.add('active');        // 채팅 보이기
+  if (home) home.style.display = 'none';         // 홈 숨기기
+}
+  
+</script>
+</body>
+</html>
