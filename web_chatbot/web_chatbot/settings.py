@@ -82,7 +82,7 @@ DATABASES = {
         "NAME": 'chatbotdb',
         'USER': 'django',
         'PASSWORD': 'django',
-        'HOST': '127.0.0.1',
+        "HOST": os.getenv("DB_HOST", "db"),
         'PORT': '3306',
         'OPTIONS': {
             'charset': 'utf8mb4'
