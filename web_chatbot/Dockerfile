@@ -24,4 +24,4 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 
 # 7. 실행
-CMD ["gunicorn", "lawquick.wsgi:application", "--config", "gunicorn.conf.py"]
+CMD ["gunicorn", "web_chatbot.wsgi:application", "--config", "gunicorn.conf.py"]
